@@ -7,7 +7,7 @@ export const authRepository = {
       password,
     });
     if (error) throw error;
-    return data.user;
+    return data;
   },
 
   async signOut() {

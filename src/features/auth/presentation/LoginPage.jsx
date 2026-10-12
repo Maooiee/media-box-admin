@@ -1,6 +1,7 @@
 ﻿import { useState } from 'react';
-import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, ShieldAlert } from 'lucide-react';
 import { authRepository } from '../data/authRepository';
+import { supabase } from '../../../core/config/supabase';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -15,9 +16,22 @@ export default function LoginPage() {
     setError('');
 
     try {
-      await authRepository.signIn(email, password);
+      const { user } = await authRepository.signIn(email, password);
+      if (!user) throw new Error('Login failed');
+
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('is_admin')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError || !profile?.is_admin) {
+        await supabase.auth.signOut();
+        setError('This account does not have admin access.');
+        return;
+      }
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -27,7 +41,6 @@ export default function LoginPage() {
     <div className="min-h-screen flex bg-bg">
       {/* ─── Left: brand panel (desktop only) ─── */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-primary via-primary to-primary-dark">
-        {/* Soft radial glow */}
         <div
           className="absolute inset-0 opacity-40 pointer-events-none"
           style={{
@@ -35,8 +48,6 @@ export default function LoginPage() {
               'radial-gradient(circle at 30% 20%, rgba(255,255,255,0.35) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(255,255,255,0.2) 0%, transparent 50%)',
           }}
         />
-
-        {/* Dotted pattern overlay */}
         <div
           className="absolute inset-0 opacity-[0.08] pointer-events-none"
           style={{
@@ -47,7 +58,6 @@ export default function LoginPage() {
         />
 
         <div className="relative z-10 flex flex-col justify-between p-12 xl:p-16 w-full">
-          {/* Brand */}
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-2xl bg-white/15 backdrop-blur-md border border-white/25 flex items-center justify-center text-white font-bold text-lg shadow-lg">
               MB
@@ -62,7 +72,6 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Center message */}
           <div className="max-w-md">
             <h2 className="text-4xl xl:text-5xl font-bold text-white leading-[1.1] tracking-tight">
               Manage your team,
@@ -74,7 +83,6 @@ export default function LoginPage() {
               dashboard built for Media Box.
             </p>
 
-            {/* Feature chips */}
             <div className="flex flex-wrap gap-2 mt-8">
               {['Attendance', 'Shifts', 'Tasks', 'Payroll'].map((tag) => (
                 <span
@@ -87,7 +95,6 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Footer */}
           <p className="text-white/50 text-xs">
             © {new Date().getFullYear()} Media Box. All rights reserved.
           </p>
@@ -97,7 +104,6 @@ export default function LoginPage() {
       {/* ─── Right: login form ─── */}
       <div className="flex-1 flex items-center justify-center p-5 sm:p-8 lg:p-12">
         <div className="w-full max-w-md">
-          {/* Mobile-only brand header */}
           <div className="lg:hidden flex flex-col items-center mb-8">
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-primary/30 mb-4">
               MB
@@ -108,7 +114,6 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {/* Heading */}
           <div className="mb-8">
             <h1 className="text-2xl sm:text-3xl font-bold text-textDark tracking-tight">
               Welcome back
@@ -118,7 +123,6 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Email */}
             <div>
@@ -137,7 +141,7 @@ export default function LoginPage() {
                   required
                   autoComplete="email"
                   className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-border bg-white text-sm text-textDark placeholder:text-textFaint outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/10"
-                  placeholder="you@example.com"
+                  placeholder="admin@mediabox.com"
                 />
               </div>
             </div>
@@ -183,7 +187,7 @@ export default function LoginPage() {
             {/* Error */}
             {error && (
               <div className="p-3.5 rounded-2xl bg-redLight border border-red/20 text-red text-xs font-semibold flex items-start gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-red mt-1.5 shrink-0" />
+                <ShieldAlert size={14} className="mt-0.5 shrink-0" />
                 <span>{error}</span>
               </div>
             )}
@@ -197,7 +201,7 @@ export default function LoginPage() {
               {loading ? (
                 <>
                   <span className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-                  Signing in…
+                  Verifying access…
                 </>
               ) : (
                 <>
@@ -211,15 +215,8 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Footer */}
           <p className="text-center text-xs text-textLight mt-8">
-            Having trouble signing in?{' '}
-            <a
-              href="#contact"
-              className="text-primary font-semibold hover:underline"
-            >
-              Contact support
-            </a>
+            Admin access is granted by Media Box management only.
           </p>
         </div>
       </div>
