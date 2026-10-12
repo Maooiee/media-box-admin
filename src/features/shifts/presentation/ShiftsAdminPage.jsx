@@ -15,25 +15,24 @@ const VIEWS = [
 ];
 
 export default function ShiftsAdminPage() {
-  const [topTab, setTopTab] = useState('shifts'); // 'shifts' | 'leave'
+  const [topTab, setTopTab] = useState('shifts');
 
   return (
-    <div className="space-y-4 relative">
-      {/* Big warm radial glow behind the header */}
+    <div className="space-y-3 md:space-y-4 relative">
       <div
-        className="absolute -top-24 left-1/2 -translate-x-1/2 w-[900px] h-[500px] rounded-full pointer-events-none"
+        className="absolute -top-24 left-1/2 -translate-x-1/2 w-[900px] h-[500px] rounded-full pointer-events-none hidden md:block"
         style={{
           background:
             'radial-gradient(circle, rgba(242,106,27,0.22) 0%, rgba(242,106,27,0.08) 40%, rgba(242,106,27,0) 70%)',
         }}
       />
 
-      <div className="relative space-y-4">
-        {/* Top tab switcher — gradient pills */}
+      <div className="relative space-y-3 md:space-y-4">
+        {/* Tab switcher */}
         <div className="flex gap-2">
           <button
             onClick={() => setTopTab('shifts')}
-            className={`px-5 py-2.5 rounded-full text-sm font-semibold transition ${
+            className={`px-3.5 md:px-5 py-2 md:py-2.5 rounded-full text-xs md:text-sm font-semibold transition ${
               topTab === 'shifts'
                 ? 'bg-gradient-to-br from-primary to-primary-dark text-white shadow-lg shadow-primary/30'
                 : 'bg-white text-textMedium border border-border hover:border-primary/40 hover:bg-primary-light/20'
@@ -43,7 +42,7 @@ export default function ShiftsAdminPage() {
           </button>
           <button
             onClick={() => setTopTab('leave')}
-            className={`px-5 py-2.5 rounded-full text-sm font-semibold transition ${
+            className={`px-3.5 md:px-5 py-2 md:py-2.5 rounded-full text-xs md:text-sm font-semibold transition ${
               topTab === 'leave'
                 ? 'bg-gradient-to-br from-primary to-primary-dark text-white shadow-lg shadow-primary/30'
                 : 'bg-white text-textMedium border border-border hover:border-primary/40 hover:bg-primary-light/20'
@@ -59,9 +58,6 @@ export default function ShiftsAdminPage() {
   );
 }
 
-// ──────────────────────────────────────────────────────────
-// Shifts content
-// ──────────────────────────────────────────────────────────
 function ShiftsContent() {
   const [view, setView] = useState('month');
   const [cursor, setCursor] = useState(new Date());
@@ -123,7 +119,6 @@ function ShiftsContent() {
           ? { full_name: empMap[r.user_id].full_name, employee_id: empMap[r.user_id].employee_id }
           : null,
       }));
-
       setShifts(enriched.map(createShift));
     } catch (e) {
       console.error(e);
@@ -206,60 +201,57 @@ function ShiftsContent() {
   const closingCount = visibleShifts.filter((s) => s.kind === 'closing').length;
 
   return (
-    <div className="space-y-4">
-      {/* Header — gradient band */}
-      <div className="rounded-3xl bg-gradient-to-br from-primary-light/70 via-primary-light/25 to-transparent p-6 border border-primary/10 shadow-card">
-        <div className="flex items-start justify-between flex-wrap gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-[10px] font-bold tracking-[0.18em] text-primary uppercase">
-                Media Box
-              </span>
-              <span className="w-1 h-1 rounded-full bg-textFaint" />
-              <span className="text-[10px] font-bold tracking-[0.18em] text-textLight uppercase">
-                Schedule
-              </span>
-            </div>
-            <h2 className="text-3xl font-bold text-textDark tracking-tight">Shifts</h2>
-            <p className="text-sm text-textMedium mt-1 flex items-center gap-2 flex-wrap">
-              <span>Long-press any day to assign</span>
-              <span className="w-1 h-1 rounded-full bg-textLight" />
-              <span>Click a chip to edit</span>
-            </p>
-          </div>
+    <div className="space-y-3 md:space-y-4">
+      {/* Header */}
+      <div className="rounded-2xl bg-gradient-to-br from-primary-light/70 via-primary-light/25 to-transparent p-4 md:p-6 border border-primary/10 shadow-card">
+        <div className="flex items-center gap-1.5 md:gap-2 mb-1 md:mb-2">
+          <span className="text-[9px] md:text-[10px] font-bold tracking-[0.18em] text-primary uppercase">
+            Media Box
+          </span>
+          <span className="w-1 h-1 rounded-full bg-textFaint" />
+          <span className="text-[9px] md:text-[10px] font-bold tracking-[0.18em] text-textLight uppercase">
+            Schedule
+          </span>
+        </div>
 
-          <div className="flex gap-2.5 flex-wrap">
-            <StatPill
-              label="Total"
-              value={totalShifts}
-              className="bg-white/90 border-border text-textDark"
-            />
-            <StatPill
-              label="Opening"
-              value={openingCount}
-              dot="bg-yellow"
-              className="bg-gradient-to-br from-yellowLight to-yellowLight/50 border-yellow/30 text-yellow"
-            />
-            <StatPill
-              label="Closing"
-              value={closingCount}
-              dot="bg-blue"
-              className="bg-gradient-to-br from-blueLight to-blueLight/50 border-blue/30 text-blue"
-            />
-          </div>
+        <h2 className="text-xl md:text-3xl font-bold text-textDark tracking-tight">
+          Shifts
+        </h2>
+        <p className="text-[11px] md:text-sm text-textMedium mt-0.5 md:mt-1">
+          Long-press any day to assign
+        </p>
+
+        <div className="flex gap-2 md:gap-2.5 flex-wrap mt-3 md:mt-4">
+          <StatPill
+            label="Total"
+            value={totalShifts}
+            className="bg-white/90 border-border text-textDark"
+          />
+          <StatPill
+            label="Opening"
+            value={openingCount}
+            dot="bg-yellow"
+            className="bg-gradient-to-br from-yellowLight to-yellowLight/50 border-yellow/30 text-yellow"
+          />
+          <StatPill
+            label="Closing"
+            value={closingCount}
+            dot="bg-blue"
+            className="bg-gradient-to-br from-blueLight to-blueLight/50 border-blue/30 text-blue"
+          />
         </div>
       </div>
 
-      {/* Employee filter — subtle gradient bar */}
-      <div className="rounded-2xl p-4 border border-border shadow-card bg-gradient-to-r from-white via-white to-primary-light/20 flex items-center gap-3 flex-wrap">
-        <Users size={16} className="text-primary shrink-0" />
-        <label className="text-[10px] font-bold tracking-wider text-textLight">
+      {/* Employee filter */}
+      <div className="rounded-2xl p-2.5 md:p-4 border border-border shadow-card bg-gradient-to-r from-white via-white to-primary-light/20 flex items-center gap-2 md:gap-3 flex-wrap">
+        <Users size={15} className="text-primary shrink-0" />
+        <label className="text-[10px] font-bold tracking-wider text-textLight shrink-0">
           FILTER
         </label>
         <select
           value={filterEmployeeId}
           onChange={(e) => setFilterEmployeeId(e.target.value)}
-          className="flex-1 md:max-w-xs px-4 py-2 rounded-xl border border-border bg-white font-semibold text-textDark text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition"
+          className="flex-1 min-w-0 md:max-w-xs px-3 md:px-4 py-1.5 md:py-2 rounded-xl border border-border bg-white font-semibold text-textDark text-xs md:text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition"
         >
           <option value="">All employees ({employees.length})</option>
           {employees.map((e) => (
@@ -271,53 +263,56 @@ function ShiftsContent() {
         {filterEmployeeId && (
           <button
             onClick={() => setFilterEmployeeId('')}
-            className="text-xs font-semibold text-primary hover:underline"
+            className="text-[11px] md:text-xs font-semibold text-primary hover:underline shrink-0"
           >
-            Clear filter
+            Clear
           </button>
         )}
       </div>
 
       {/* Toolbar */}
-      <div className="rounded-2xl p-3 border border-border shadow-card bg-gradient-to-r from-white via-white to-primary-light/15 flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-2">
+      <div className="rounded-2xl p-2.5 md:p-3 border border-border shadow-card bg-gradient-to-r from-white via-white to-primary-light/15 space-y-2 md:space-y-0 md:flex md:items-center md:justify-between md:gap-3">
+        <div className="flex items-center gap-1.5 md:gap-2">
           <button
             onClick={prev}
-            className="w-9 h-9 rounded-full hover:bg-primary-light/40 flex items-center justify-center text-textDark transition"
+            className="w-8 h-8 md:w-9 md:h-9 rounded-full hover:bg-primary-light/40 flex items-center justify-center text-textDark transition"
           >
-            <ChevronLeft size={18} />
+            <ChevronLeft size={16} className="md:hidden" />
+            <ChevronLeft size={18} className="hidden md:block" />
           </button>
-          <div className="min-w-[160px] text-center font-bold text-textDark">
+          <div className="flex-1 md:flex-none text-center md:min-w-[160px] font-bold text-sm md:text-base text-textDark truncate px-1">
             {headerLabel()}
           </div>
           <button
             onClick={next}
-            className="w-9 h-9 rounded-full hover:bg-primary-light/40 flex items-center justify-center text-textDark transition"
+            className="w-8 h-8 md:w-9 md:h-9 rounded-full hover:bg-primary-light/40 flex items-center justify-center text-textDark transition"
           >
-            <ChevronRight size={18} />
+            <ChevronRight size={16} className="md:hidden" />
+            <ChevronRight size={18} className="hidden md:block" />
           </button>
           <button
             onClick={() => setCursor(new Date())}
-            className="ml-2 px-3 py-1.5 rounded-full text-xs font-semibold border border-border hover:border-primary/40 hover:bg-primary-light/30 transition"
+            className="px-2.5 md:px-3 py-1.5 rounded-full text-[11px] md:text-xs font-semibold border border-border hover:border-primary/40 hover:bg-primary-light/30 transition shrink-0"
           >
             Today
           </button>
         </div>
 
-        <div className="inline-flex gap-1 bg-bg rounded-full p-1">
+        <div className="inline-flex gap-1 bg-bg rounded-full p-1 self-center md:self-auto">
           {VIEWS.map((v) => {
             const Icon = v.icon;
             return (
               <button
                 key={v.key}
                 onClick={() => setView(v.key)}
-                className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold transition ${
+                className={`inline-flex items-center gap-1.5 px-3 md:px-4 py-1.5 rounded-full text-[11px] md:text-xs font-semibold transition ${
                   view === v.key
                     ? 'bg-gradient-to-br from-primary to-primary-dark text-white shadow-md shadow-primary/30'
                     : 'text-textMedium hover:text-textDark'
                 }`}
               >
-                <Icon size={12} />
+                <Icon size={11} className="md:hidden" />
+                <Icon size={12} className="hidden md:block" />
                 {v.label}
               </button>
             );
@@ -326,52 +321,54 @@ function ShiftsContent() {
       </div>
 
       {/* Legend */}
-      <div className="flex items-center gap-4 px-2">
+      <div className="flex items-center gap-3 md:gap-4 px-1 md:px-2 flex-wrap">
         {SHIFT_KINDS.map((k) => (
-          <div key={k.key} className="flex items-center gap-2">
-            <div className={`w-3 h-3 rounded-full ${kindDot(k.key)}`} />
-            <span className="text-xs font-semibold text-textMedium">
+          <div key={k.key} className="flex items-center gap-1.5 md:gap-2">
+            <div className={`w-2.5 h-2.5 md:w-3 md:h-3 rounded-full ${kindDot(k.key)}`} />
+            <span className="text-[10px] md:text-xs font-semibold text-textMedium">
               {k.label} ({k.start}–{k.end})
             </span>
           </div>
         ))}
       </div>
 
-      {/* Calendar */}
+      {/* Calendar — single block, respects Month/Week toggle on ALL screen sizes */}
       {loading ? (
-        <div className="text-center py-20 text-textLight">Loading...</div>
-      ) : view === 'month' ? (
+        <div className="text-center py-20 text-textLight text-sm">Loading...</div>
+      ) : (
         <>
-          {isViewingPastMonth() && (
-            <div className="bg-gradient-to-br from-yellowLight to-yellowLight/60 border border-yellow/30 rounded-2xl px-5 py-3 flex items-center gap-3">
-              <Lock size={16} className="text-yellow shrink-0" />
-              <div className="flex-1">
-                <p className="text-sm font-bold text-yellow">
+          {isViewingPastMonth() && view === 'month' && (
+            <div className="bg-gradient-to-br from-yellowLight to-yellowLight/60 border border-yellow/30 rounded-2xl px-4 md:px-5 py-3 flex items-start md:items-center gap-3">
+              <Lock size={14} className="text-yellow shrink-0 mt-0.5 md:mt-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs md:text-sm font-bold text-yellow">
                   Viewing a past month
                 </p>
-                <p className="text-xs text-yellow/85 mt-0.5">
-                  Past shifts are read-only. Click "Today" to return to the current month.
+                <p className="text-[11px] md:text-xs text-yellow/85 mt-0.5">
+                  Past shifts are read-only. Click "Today" to return.
                 </p>
               </div>
             </div>
           )}
-          <CalendarGrid
-            monthDate={cursor}
-            shifts={visibleShifts}
-            employees={visibleEmployees}
-            onAssignToEmployee={handleAssignToEmployee}
-            onOpenEditor={setEditingShift}
-          />
+
+          {view === 'month' ? (
+            <CalendarGrid
+              monthDate={cursor}
+              shifts={visibleShifts}
+              employees={visibleEmployees}
+              onAssignToEmployee={handleAssignToEmployee}
+              onOpenEditor={setEditingShift}
+            />
+          ) : (
+            <WeekView
+              weekStart={startOfWeek(cursor)}
+              shifts={visibleShifts}
+              employees={visibleEmployees}
+              onAssignToEmployee={handleAssignToEmployee}
+              onOpenEditor={setEditingShift}
+            />
+          )}
         </>
-      ) : (
-        <WeekView
-          weekStart={startOfWeek(cursor)}
-          weekEnd={new Date(startOfWeek(cursor).getTime() + 6 * 86400000)}
-          shifts={visibleShifts}
-          employees={visibleEmployees}
-          onAssignToEmployee={handleAssignToEmployee}
-          onOpenEditor={setEditingShift}
-        />
       )}
 
       <EditShiftModal
@@ -384,9 +381,6 @@ function ShiftsContent() {
   );
 }
 
-// ──────────────────────────────────────────────────────────
-// Helpers
-// ──────────────────────────────────────────────────────────
 function toLocalDateStr(d) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -396,12 +390,10 @@ function toLocalDateStr(d) {
 
 function StatPill({ label, value, dot, className }) {
   return (
-    <div
-      className={`rounded-2xl px-4 py-2.5 border shadow-card flex items-center gap-2 ${className}`}
-    >
-      {dot && <span className={`w-2 h-2 rounded-full ${dot}`} />}
-      <span className="text-xs font-semibold opacity-80">{label}</span>
-      <span className="text-lg font-bold leading-none">{value}</span>
+    <div className={`rounded-xl md:rounded-2xl px-3 md:px-4 py-1.5 md:py-2.5 border shadow-card flex items-center gap-1.5 md:gap-2 ${className}`}>
+      {dot && <span className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full ${dot}`} />}
+      <span className="text-[10px] md:text-xs font-semibold opacity-80">{label}</span>
+      <span className="text-sm md:text-lg font-bold leading-none">{value}</span>
     </div>
   );
 }

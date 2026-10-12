@@ -1,25 +1,15 @@
 ﻿// admin-panel/src/features/tasks/presentation/TasksPage.jsx
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Plus,
-  Search,
-  LayoutGrid,
-  List as ListIcon,
-  History,
-  Clock,
-  CheckCircle2,
-  AlertTriangle,
-  CalendarClock,
-  CheckSquare,
+  Plus, Search, LayoutGrid, List as ListIcon, History, Clock,
+  CheckCircle2, AlertTriangle, CalendarClock, CheckSquare,
 } from 'lucide-react';
 import { tasksRepository } from '../data/tasksRepository';
 import {
-  createTask,
-  isArchived,
-  minutesSinceCompleted,
-  relativeTimeFromNow,
+  createTask, isArchived, minutesSinceCompleted, relativeTimeFromNow,
 } from '../domain/Task';
 import { supabase } from '../../../core/config/supabase';
+import PageHeader from '../../../shared/components/PageHeader';
 import AddTaskModal from './widgets/AddTaskModal';
 import TaskCard from './widgets/TaskCard';
 import TaskRow from './widgets/TaskRow';
@@ -170,7 +160,6 @@ export default function TasksPage() {
 
   const visible = useMemo(() => {
     let list = current;
-
     if (pageTab === 'active' && filter !== 'all') {
       list = list.filter((t) => t.status === filter);
     }
@@ -224,193 +213,148 @@ export default function TasksPage() {
     (pageTab === 'active' && filter !== 'all') || search.trim().length > 0;
 
   return (
-    <div className="space-y-4 relative">
-      {/* Soft radial glow */}
-      <div
-        className="absolute -top-24 left-1/2 -translate-x-1/2 w-[900px] h-[500px] rounded-full pointer-events-none"
-        style={{
-          background:
-            'radial-gradient(circle, rgba(242,106,27,0.18) 0%, rgba(242,106,27,0.05) 40%, rgba(242,106,27,0) 70%)',
-        }}
-      />
-
-      <div className="relative space-y-4">
-        {/* Header — compact gradient band */}
-        <div className="rounded-2xl bg-gradient-to-br from-primary-light/70 via-primary-light/25 to-transparent px-5 py-4 border border-primary/10 shadow-card flex items-center justify-between flex-wrap gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center text-white shadow-brand shrink-0">
-              <CheckSquare size={20} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-2xl font-bold text-textDark tracking-tight">
-                  Tasks
-                </h2>
-                {liveIndicator && (
-                  <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-green bg-greenLight border border-green/30 px-2 py-0.5 rounded-full">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green animate-pulse" />
-                    LIVE
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-textMedium mt-0.5">
-                Manage all tasks across your team
-              </p>
-            </div>
-          </div>
-
+    <div className="space-y-3 md:space-y-4">
+      {/* Header */}
+      <PageHeader
+        section="Tasks"
+        title="Tasks"
+        subtitle="Manage all tasks across your team"
+        icon={CheckSquare}
+        action={
           <button
             onClick={() => setShowAdd(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-br from-primary to-primary-dark text-white font-semibold text-sm shadow-lg shadow-primary/30 hover:shadow-primary/50 hover:-translate-y-0.5 transition-all"
+            className="inline-flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 rounded-full bg-gradient-to-br from-primary to-primary-dark text-white font-semibold text-xs md:text-sm shadow-lg shadow-primary/30 hover:shadow-primary/50 hover:-translate-y-0.5 transition-all"
           >
-            <Plus size={15} />
-            Add Task
+            <Plus size={14} className="md:hidden" />
+            <Plus size={15} className="hidden md:block" />
+            <span className="whitespace-nowrap">Add Task</span>
+          </button>
+        }
+      />
+
+      {/* Stats — 4 tiles on desktop, 2×2 on mobile */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
+        <StatTile label="Total" value={total} tone="brand" icon={<CheckSquare size={14} />} />
+        <StatTile label="Overdue" value={overdueCount} tone="bad" icon={<AlertTriangle size={14} />} />
+        <StatTile label="Due soon" value={dueSoonCount} tone="warn" icon={<CalendarClock size={14} />} />
+        <StatTile label="Done today" value={doneTodayCount} tone="good" icon={<CheckCircle2 size={14} />} />
+      </div>
+
+      {/* Tabs + Filters */}
+      <div className="space-y-2 md:space-y-0 md:flex md:items-center md:gap-3 md:flex-wrap">
+        {/* Active/History tabs */}
+        <div className="inline-flex bg-white border border-border rounded-full p-1 shadow-card shrink-0">
+          <button
+            onClick={() => setPageTab('active')}
+            className={`inline-flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 rounded-full text-[11px] md:text-xs font-semibold transition ${
+              pageTab === 'active'
+                ? 'bg-gradient-to-br from-primary to-primary-dark text-white shadow-md shadow-primary/30'
+                : 'text-textMedium hover:text-textDark'
+            }`}
+          >
+            <Clock size={12} className="md:hidden" />
+            <Clock size={13} className="hidden md:block" />
+            Active
+            <span
+              className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[16px] md:min-w-[18px] text-center ${
+                pageTab === 'active' ? 'bg-white/25 text-white' : 'bg-bg text-textLight'
+              }`}
+            >
+              {activeTasks.length}
+            </span>
+          </button>
+          <button
+            onClick={() => setPageTab('history')}
+            className={`inline-flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 rounded-full text-[11px] md:text-xs font-semibold transition ${
+              pageTab === 'history'
+                ? 'bg-gradient-to-br from-primary to-primary-dark text-white shadow-md shadow-primary/30'
+                : 'text-textMedium hover:text-textDark'
+            }`}
+          >
+            <History size={12} className="md:hidden" />
+            <History size={13} className="hidden md:block" />
+            History
+            <span
+              className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[16px] md:min-w-[18px] text-center ${
+                pageTab === 'history' ? 'bg-white/25 text-white' : 'bg-bg text-textLight'
+              }`}
+            >
+              {historyTasks.length}
+            </span>
           </button>
         </div>
 
-        {/* Stats — 4 equal-width compact tiles */}
-        <div className="grid grid-cols-4 gap-3">
-          <StatTile
-            label="Total"
-            value={total}
-            tone="brand"
-            icon={<CheckSquare size={14} />}
-          />
-          <StatTile
-            label="Overdue"
-            value={overdueCount}
-            tone="bad"
-            icon={<AlertTriangle size={14} />}
-          />
-          <StatTile
-            label="Due soon"
-            value={dueSoonCount}
-            tone="warn"
-            icon={<CalendarClock size={14} />}
-          />
-          <StatTile
-            label="Done today"
-            value={doneTodayCount}
-            tone="good"
-            icon={<CheckCircle2 size={14} />}
-          />
-        </div>
-
-        {/* Tabs + Filters merged on one row */}
-        <div className="flex items-center gap-3 flex-wrap">
-          {/* Active/History tabs */}
-          <div className="inline-flex bg-white border border-border rounded-full p-1 shadow-card shrink-0">
-            <button
-              onClick={() => setPageTab('active')}
-              className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold transition ${
-                pageTab === 'active'
-                  ? 'bg-gradient-to-br from-primary to-primary-dark text-white shadow-md shadow-primary/30'
-                  : 'text-textMedium hover:text-textDark'
-              }`}
-            >
-              <Clock size={13} />
-              Active
-              <span
-                className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center ${
-                  pageTab === 'active'
-                    ? 'bg-white/25 text-white'
-                    : 'bg-bg text-textLight'
-                }`}
-              >
-                {activeTasks.length}
-              </span>
-            </button>
-            <button
-              onClick={() => setPageTab('history')}
-              className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold transition ${
-                pageTab === 'history'
-                  ? 'bg-gradient-to-br from-primary to-primary-dark text-white shadow-md shadow-primary/30'
-                  : 'text-textMedium hover:text-textDark'
-              }`}
-            >
-              <History size={13} />
-              History
-              <span
-                className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center ${
-                  pageTab === 'history'
-                    ? 'bg-white/25 text-white'
-                    : 'bg-bg text-textLight'
-                }`}
-              >
-                {historyTasks.length}
-              </span>
-            </button>
-          </div>
-
-          {/* Status chips — only on Active tab */}
-          {pageTab === 'active' && (
-            <>
-              <span className="w-px h-6 bg-border shrink-0" />
-              <div className="flex flex-wrap gap-1.5">
-                {STATUS_TABS.map((t) => {
-                  const count =
-                    t.key === 'all' ? total :
-                    t.key === 'backlog' ? backlog :
-                    t.key === 'onProgress' ? progress :
-                    t.key === 'onHold' ? onHold :
-                    done;
-                  const active = filter === t.key;
-                  return (
-                    <button
-                      key={t.key}
-                      onClick={() => setFilter(t.key)}
-                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold transition ${
+        {/* Status chips — horizontal scroll on mobile */}
+        {pageTab === 'active' && (
+          <div className="-mx-4 md:mx-0 px-4 md:px-0 overflow-x-auto md:overflow-visible">
+            <div className="flex gap-1.5 md:gap-1.5 w-max md:w-auto">
+              {STATUS_TABS.map((t) => {
+                const count =
+                  t.key === 'all' ? total :
+                  t.key === 'backlog' ? backlog :
+                  t.key === 'onProgress' ? progress :
+                  t.key === 'onHold' ? onHold :
+                  done;
+                const active = filter === t.key;
+                return (
+                  <button
+                    key={t.key}
+                    onClick={() => setFilter(t.key)}
+                    className={`inline-flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 rounded-full text-[11px] font-bold transition whitespace-nowrap ${
+                      active
+                        ? 'bg-gradient-to-br from-primary to-primary-dark text-white shadow-md shadow-primary/30'
+                        : 'bg-white text-textMedium border border-border hover:border-primary/40 hover:bg-primary-light/20 hover:text-textDark'
+                    }`}
+                  >
+                    {t.label}
+                    <span
+                      className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[16px] text-center ${
                         active
-                          ? 'bg-gradient-to-br from-primary to-primary-dark text-white shadow-md shadow-primary/30'
-                          : 'bg-white text-textMedium border border-border hover:border-primary/40 hover:bg-primary-light/20 hover:text-textDark'
+                          ? 'bg-white/25 text-white'
+                          : count > 0
+                          ? 'bg-primary-light text-primary'
+                          : 'bg-bg text-textFaint'
                       }`}
                     >
-                      {t.label}
-                      <span
-                        className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[16px] text-center ${
-                          active
-                            ? 'bg-white/25 text-white'
-                            : count > 0
-                            ? 'bg-primary-light text-primary'
-                            : 'bg-bg text-textFaint'
-                        }`}
-                      >
-                        {count}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Toolbar */}
+      <div className="rounded-2xl p-2 border border-border shadow-card bg-gradient-to-r from-white via-white to-primary-light/15 space-y-2 md:space-y-0 md:flex md:items-center md:gap-2 md:flex-wrap">
+        {/* Search */}
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-border bg-white focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition md:flex-1 md:min-w-[220px]">
+          <Search size={14} className="text-textLight shrink-0" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search tasks…"
+            className="flex-1 min-w-0 bg-transparent outline-none text-sm text-textDark placeholder:text-textLight"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              className="text-[10px] font-bold text-textLight hover:text-primary transition shrink-0"
+            >
+              CLEAR
+            </button>
           )}
         </div>
 
-        {/* Toolbar */}
-        <div className="rounded-2xl p-2 border border-border shadow-card bg-gradient-to-r from-white via-white to-primary-light/15 flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-2 flex-1 min-w-[220px] px-3 py-1.5 rounded-xl border border-border bg-white focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition">
-            <Search size={14} className="text-textLight shrink-0" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search tasks…"
-              className="flex-1 bg-transparent outline-none text-sm text-textDark placeholder:text-textLight"
-            />
-            {search && (
-              <button
-                onClick={() => setSearch('')}
-                className="text-[10px] font-bold text-textLight hover:text-primary transition"
-              >
-                CLEAR
-              </button>
-            )}
-          </div>
-
+        {/* Sort + View — same row on mobile */}
+        <div className="flex items-center gap-2">
           {pageTab === 'active' && (
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value)}
-              className="px-3 py-1.5 rounded-full border border-border bg-white shadow-sm text-xs font-semibold text-textDark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary cursor-pointer"
+              className="flex-1 md:flex-none px-3 py-1.5 rounded-full border border-border bg-white shadow-sm text-xs font-semibold text-textDark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary cursor-pointer"
             >
               {SORTS.map((s) => (
                 <option key={s.key} value={s.key}>
@@ -420,7 +364,7 @@ export default function TasksPage() {
             </select>
           )}
 
-          <div className="inline-flex bg-white border border-border rounded-full p-0.5 shadow-sm">
+          <div className="inline-flex bg-white border border-border rounded-full p-0.5 shadow-sm shrink-0">
             <button
               onClick={() => setView('grid')}
               className={`w-8 h-8 rounded-full flex items-center justify-center transition ${
@@ -445,51 +389,51 @@ export default function TasksPage() {
             </button>
           </div>
         </div>
-
-        {/* Task list */}
-        {loading ? (
-          <div className="text-center py-20 text-textLight">Loading...</div>
-        ) : visible.length === 0 ? (
-          pageTab === 'history' ? (
-            <EmptyHistory filtered={hasFilters} />
-          ) : (
-            <EmptyTasks onAdd={() => setShowAdd(true)} filtered={hasFilters} />
-          )
-        ) : pageTab === 'history' ? (
-          view === 'grid' ? (
-            <HistoryGrid tasks={visible} onEdit={setEditingTask} />
-          ) : (
-            <HistoryList tasks={visible} onEdit={setEditingTask} />
-          )
-        ) : view === 'grid' ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {visible.map((t) => (
-              <TaskCard key={t.id} task={t} onEdit={setEditingTask} />
-            ))}
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {visible.map((t) => (
-              <TaskRow key={t.id} task={t} onEdit={setEditingTask} />
-            ))}
-          </div>
-        )}
-
-        <AddTaskModal
-          open={showAdd}
-          onClose={() => setShowAdd(false)}
-          onCreated={loadTasks}
-        />
-
-        {editingTask && (
-          <EditTaskModal
-            open={!!editingTask}
-            task={editingTask}
-            onClose={() => setEditingTask(null)}
-            onSaved={loadTasks}
-          />
-        )}
       </div>
+
+      {/* Task list */}
+      {loading ? (
+        <div className="text-center py-20 text-textLight text-sm">Loading...</div>
+      ) : visible.length === 0 ? (
+        pageTab === 'history' ? (
+          <EmptyHistory filtered={hasFilters} />
+        ) : (
+          <EmptyTasks onAdd={() => setShowAdd(true)} filtered={hasFilters} />
+        )
+      ) : pageTab === 'history' ? (
+        view === 'grid' ? (
+          <HistoryGrid tasks={visible} onEdit={setEditingTask} />
+        ) : (
+          <HistoryList tasks={visible} onEdit={setEditingTask} />
+        )
+      ) : view === 'grid' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-4">
+          {visible.map((t) => (
+            <TaskCard key={t.id} task={t} onEdit={setEditingTask} />
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {visible.map((t) => (
+            <TaskRow key={t.id} task={t} onEdit={setEditingTask} />
+          ))}
+        </div>
+      )}
+
+      <AddTaskModal
+        open={showAdd}
+        onClose={() => setShowAdd(false)}
+        onCreated={loadTasks}
+      />
+
+      {editingTask && (
+        <EditTaskModal
+          open={!!editingTask}
+          task={editingTask}
+          onClose={() => setEditingTask(null)}
+          onSaved={loadTasks}
+        />
+      )}
     </div>
   );
 }
@@ -499,31 +443,29 @@ export default function TasksPage() {
 // ─────────────────────────────────────────────────────────
 function StatTile({ label, value, tone, icon }) {
   const tones = {
-    neutral: 'bg-white border-border text-textDark',
-    brand:   'bg-gradient-to-br from-primary-light/70 to-primary-light/30 border-primary/25 text-textDark',
-    good:    'bg-gradient-to-br from-greenLight to-greenLight/50 border-green/30 text-green',
-    warn:    'bg-gradient-to-br from-yellowLight to-yellowLight/50 border-yellow/30 text-yellow',
-    bad:     'bg-gradient-to-br from-redLight to-redLight/50 border-red/30 text-red',
+    brand: 'bg-gradient-to-br from-primary-light/70 to-primary-light/30 border-primary/25 text-textDark',
+    good:  'bg-gradient-to-br from-greenLight to-greenLight/50 border-green/30 text-green',
+    warn:  'bg-gradient-to-br from-yellowLight to-yellowLight/50 border-yellow/30 text-yellow',
+    bad:   'bg-gradient-to-br from-redLight to-redLight/50 border-red/30 text-red',
   };
   const iconTones = {
-    neutral: 'bg-bg text-textMedium',
-    brand:   'bg-white/80 text-primary',
-    good:    'bg-white/70 text-green',
-    warn:    'bg-white/70 text-yellow',
-    bad:     'bg-white/70 text-red',
+    brand: 'bg-white/80 text-primary',
+    good:  'bg-white/70 text-green',
+    warn:  'bg-white/70 text-yellow',
+    bad:   'bg-white/70 text-red',
   };
   return (
-    <div className={`rounded-2xl border shadow-card px-3.5 py-3 flex items-center gap-3 ${tones[tone]}`}>
+    <div className={`rounded-xl md:rounded-2xl border shadow-card p-2.5 md:px-3.5 md:py-3 flex items-center gap-2 md:gap-3 ${tones[tone]}`}>
       {icon && (
-        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${iconTones[tone]}`}>
+        <div className={`w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center shrink-0 ${iconTones[tone]}`}>
           {icon}
         </div>
       )}
       <div className="min-w-0">
-        <p className="text-[10px] font-bold tracking-wider uppercase opacity-70 truncate">
+        <p className="text-[9px] md:text-[10px] font-bold tracking-wider uppercase opacity-70 truncate">
           {label}
         </p>
-        <p className="text-xl font-bold leading-tight">{value}</p>
+        <p className="text-lg md:text-xl font-bold leading-tight">{value}</p>
       </div>
     </div>
   );
@@ -548,9 +490,10 @@ function HistoryRow({ task, onEdit }) {
 
   return (
     <div className="bg-white rounded-2xl border border-border shadow-card hover:border-primary/30 transition group">
-      <div className="flex items-center gap-3 p-4">
-        <div className="w-9 h-9 rounded-full bg-greenLight flex items-center justify-center text-green shrink-0">
-          <CheckCircle2 size={16} />
+      <div className="flex items-center gap-3 p-3 md:p-4">
+        <div className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-greenLight flex items-center justify-center text-green shrink-0">
+          <CheckCircle2 size={14} className="md:hidden" />
+          <CheckCircle2 size={16} className="hidden md:block" />
         </div>
 
         <div className="flex-1 min-w-0">
@@ -564,7 +507,7 @@ function HistoryRow({ task, onEdit }) {
               </span>
             )}
           </div>
-          <div className="flex items-center gap-2 mt-0.5 text-[11px] text-textLight flex-wrap">
+          <div className="flex items-center gap-2 mt-0.5 text-[10px] md:text-[11px] text-textLight flex-wrap">
             <span className="inline-flex items-center gap-1">
               <span className="w-5 h-5 rounded-full bg-primary-light flex items-center justify-center text-primary text-[9px] font-bold">
                 {task.assigneeName?.[0]?.toUpperCase() ?? '?'}
@@ -573,7 +516,6 @@ function HistoryRow({ task, onEdit }) {
             </span>
             <span className="w-1 h-1 rounded-full bg-textLight" />
             <span>
-              Completed{' '}
               {new Date(task.completedAt).toLocaleString('en-PH', {
                 month: 'short',
                 day: 'numeric',
@@ -586,7 +528,7 @@ function HistoryRow({ task, onEdit }) {
 
         <button
           onClick={() => onEdit(task)}
-          className="text-[11px] font-bold text-primary hover:underline opacity-0 group-hover:opacity-100 transition shrink-0"
+          className="text-[11px] font-bold text-primary hover:underline md:opacity-0 md:group-hover:opacity-100 transition shrink-0"
         >
           View
         </button>
@@ -597,14 +539,15 @@ function HistoryRow({ task, onEdit }) {
 
 function EmptyHistory({ filtered }) {
   return (
-    <div className="text-center py-20 bg-white rounded-3xl border border-border shadow-card">
-      <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-br from-primary-light to-primary-light/50 flex items-center justify-center mb-4">
-        <History size={32} className="text-primary" />
+    <div className="text-center py-16 md:py-20 bg-white rounded-3xl border border-border shadow-card">
+      <div className="w-16 h-16 md:w-20 md:h-20 mx-auto rounded-3xl bg-gradient-to-br from-primary-light to-primary-light/50 flex items-center justify-center mb-4">
+        <History size={28} className="md:hidden text-primary" />
+        <History size={32} className="hidden md:block text-primary" />
       </div>
-      <p className="text-base font-bold text-textDark">
+      <p className="text-sm md:text-base font-bold text-textDark">
         {filtered ? 'No matching history' : 'Nothing here yet'}
       </p>
-      <p className="text-sm text-textLight mt-1">
+      <p className="text-xs md:text-sm text-textLight mt-1">
         {filtered
           ? 'Try a different search.'
           : 'Tasks move here 1 hour after being marked done.'}
@@ -615,7 +558,7 @@ function EmptyHistory({ filtered }) {
 
 function HistoryGrid({ tasks, onEdit }) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-4">
       {tasks.map((t) => (
         <HistoryCard key={t.id} task={t} onEdit={onEdit} />
       ))}
@@ -631,10 +574,11 @@ function HistoryCard({ task, onEdit }) {
     <div className="group bg-white rounded-2xl border border-border shadow-card hover:border-green/40 hover:shadow-card-hover transition-all overflow-hidden">
       <div className="h-1 bg-gradient-to-r from-green to-green/70" />
 
-      <div className="p-4 space-y-3">
+      <div className="p-3 md:p-4 space-y-2.5 md:space-y-3">
         <div className="flex items-start justify-between gap-2">
-          <div className="w-9 h-9 rounded-xl bg-greenLight flex items-center justify-center text-green shrink-0">
-            <CheckCircle2 size={16} />
+          <div className="w-8 h-8 md:w-9 md:h-9 rounded-xl bg-greenLight flex items-center justify-center text-green shrink-0">
+            <CheckCircle2 size={14} className="md:hidden" />
+            <CheckCircle2 size={16} className="hidden md:block" />
           </div>
           {isRecent && (
             <span className="text-[10px] font-bold text-green bg-greenLight border border-green/20 px-2 py-0.5 rounded-full shrink-0">
@@ -666,7 +610,6 @@ function HistoryCard({ task, onEdit }) {
             </span>
           </div>
           <p className="text-[10px] text-textLight">
-            Completed{' '}
             {new Date(task.completedAt).toLocaleString('en-PH', {
               month: 'short',
               day: 'numeric',
@@ -678,7 +621,7 @@ function HistoryCard({ task, onEdit }) {
 
         <button
           onClick={() => onEdit(task)}
-          className="w-full text-[11px] font-bold text-primary hover:underline text-center opacity-0 group-hover:opacity-100 transition-opacity pt-1"
+          className="w-full text-[11px] font-bold text-primary hover:underline text-center md:opacity-0 md:group-hover:opacity-100 transition-opacity pt-1"
         >
           View details →
         </button>

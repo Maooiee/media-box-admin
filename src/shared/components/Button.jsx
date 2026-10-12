@@ -8,10 +8,12 @@
   ...props
 }) {
   const base = `
+    group
     inline-flex items-center justify-center gap-2 font-semibold rounded-full
     transition-all duration-200 ease-out
-    disabled:opacity-50 disabled:cursor-not-allowed
+    disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0
     hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]
+    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-2
   `;
 
   const sizes = {
@@ -22,25 +24,26 @@
 
   const variants = {
     primary: `
-      bg-primary text-white
-      shadow-md shadow-primary/20
-      hover:bg-primary-dark hover:shadow-lg hover:shadow-primary/30
+      bg-gradient-to-br from-primary to-primary-dark text-white
+      shadow-md shadow-primary/25
+      hover:shadow-lg hover:shadow-primary/35
     `,
     outline: `
       border border-border text-textDark bg-white
-      hover:border-primary/40 hover:bg-bg hover:shadow-sm
+      hover:border-primary/40 hover:bg-primary-light/20 hover:text-primary
+      hover:shadow-sm
     `,
     ghost: `
       text-textMedium hover:text-textDark hover:bg-bg
     `,
     danger: `
-      bg-red-500 text-white
-      shadow-md shadow-red-500/20
-      hover:bg-red-600 hover:shadow-lg hover:shadow-red-500/30
+      bg-gradient-to-br from-red-500 to-red-600 text-white
+      shadow-md shadow-red-500/25
+      hover:shadow-lg hover:shadow-red-500/35
     `,
   };
 
-  const iconSize = size === 'sm' ? 14 : 16;
+  const iconSize = size === 'sm' ? 14 : size === 'lg' ? 18 : 16;
 
   return (
     <button
@@ -51,7 +54,7 @@
       {Icon && (
         <Icon
           size={iconSize}
-          className="transition-transform duration-200 group-hover:scale-110"
+          className="shrink-0 transition-transform duration-200 group-hover:scale-110"
         />
       )}
       {children}

@@ -52,7 +52,7 @@ export default function DashboardPage() {
         dashboardRepository.fetchWeeklySummary(),
         dashboardRepository.fetchSelfieSnapshot(),
         fetchWorkforceAvailability(),
-        dashboardRepository.fetchPendingLeaveCount(),
+        dashboardRepository.fetchPendingLeaveCount?.() ?? Promise.resolve(0),
       ]);
       setTodayRecords(Array.isArray(today) ? today : []);
       setLiveNow(Array.isArray(live) ? live : []);
@@ -108,37 +108,37 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center py-24">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-12 h-12 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
-          <p className="text-sm text-textLight">Loading dashboard...</p>
+          <div className="w-10 h-10 md:w-12 md:h-12 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
+          <p className="text-xs md:text-sm text-textLight">Loading dashboard...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-[1400px] mx-auto space-y-4 pb-8">
-      {/* Header */}
-      <div className="flex items-start justify-between flex-wrap gap-4">
-        <div className="flex items-start gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center text-white shadow-brand">
-            <IconChartBar size={22} />
+    <div className="max-w-[1400px] mx-auto space-y-3 md:space-y-4 pb-6 md:pb-8">
+      {/* Header — responsive */}
+      <div className="flex items-start justify-between flex-wrap gap-3 md:gap-4">
+        <div className="flex items-start gap-3 md:gap-4 min-w-0 flex-1">
+          <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center text-white shadow-brand shrink-0">
+            <IconChartBar size={18} />
           </div>
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-[10px] font-bold tracking-[0.18em] text-primary uppercase">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 md:gap-2 mb-0.5 md:mb-1">
+              <span className="text-[9px] md:text-[10px] font-bold tracking-[0.18em] text-primary uppercase">
                 Media Box
               </span>
               <span className="w-1 h-1 rounded-full bg-textFaint" />
-              <span className="text-[10px] font-bold tracking-[0.18em] text-textLight uppercase">
+              <span className="text-[9px] md:text-[10px] font-bold tracking-[0.18em] text-textLight uppercase">
                 Admin
               </span>
             </div>
-            <h1 className="text-3xl font-bold text-textDark tracking-tight leading-tight">
+            <h1 className="text-xl md:text-3xl font-bold text-textDark tracking-tight leading-tight truncate">
               Attendance Dashboard
             </h1>
-            <p className="text-xs text-textLight mt-0.5">
+            <p className="text-[11px] md:text-xs text-textLight mt-0.5 truncate">
               {new Date().toLocaleDateString('en-PH', {
                 weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
               })}
@@ -146,8 +146,8 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 text-[11px] text-textLight bg-white border border-border rounded-full px-3 py-1.5">
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="hidden md:flex items-center gap-2 text-[11px] text-textLight bg-white border border-border rounded-full px-3 py-1.5">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green opacity-75" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-green" />
@@ -159,7 +159,7 @@ export default function DashboardPage() {
               <button
                 key={r}
                 onClick={() => setRange(r)}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition ${
+                className={`px-2.5 md:px-3.5 py-1.5 rounded-full text-[11px] md:text-xs font-semibold transition ${
                   range === r
                     ? 'bg-primary text-white shadow-sm'
                     : 'text-textMedium hover:text-textDark'
@@ -172,12 +172,12 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* This Week summary */}
-      <div className="bg-gradient-to-br from-primary-light/60 via-white to-white rounded-2xl border border-primary/15 shadow-card p-4">
-        <div className="flex items-center justify-between mb-3">
+      {/* This Week summary — responsive */}
+      <div className="bg-gradient-to-br from-primary-light/60 via-white to-white rounded-2xl border border-primary/15 shadow-card p-3.5 md:p-4">
+        <div className="flex items-center justify-between mb-2.5 md:mb-3">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-white flex items-center justify-center text-primary">
-              <IconCalendar size={14} />
+            <div className="w-6 h-6 md:w-7 md:h-7 rounded-lg bg-white flex items-center justify-center text-primary">
+              <IconCalendar size={12} />
             </div>
             <p className="text-xs font-bold text-textDark">This Week</p>
           </div>
@@ -193,22 +193,22 @@ export default function DashboardPage() {
           <MiniStat label="Late" value={weeklySummary.late} tone="warn" />
           <MiniStat label="Absent" value={weeklySummary.absent} tone="bad" />
         </div>
-        <div className="mt-3 pt-3 border-t border-primary/10 flex items-center justify-between text-[11px] text-textMedium">
+        <div className="mt-2.5 md:mt-3 pt-2.5 md:pt-3 border-t border-primary/10 flex items-center justify-between text-[10px] md:text-[11px] text-textMedium">
           <span>{weeklySummary.total} check-ins</span>
           <span>Avg {weeklySummary.avgCheckIn}</span>
         </div>
       </div>
 
-      {/* Workforce Availability */}
+      {/* Workforce */}
       <WorkforceCard workforce={workforce} />
 
-      {/* Two-column main grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 space-y-4">
+      {/* Main grid — single column on mobile, 3 columns on desktop */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4">
+        <div className="lg:col-span-2 space-y-3 md:space-y-4">
           <Card
             title="Live now"
             subtitle={`${liveNow.length} ${liveNow.length === 1 ? 'person' : 'people'} on shift`}
-            icon={<IconPulse size={16} />}
+            icon={<IconPulse size={15} />}
           >
             {liveNow.length === 0 ? (
               <EmptyText text="No one is currently on shift." />
@@ -224,7 +224,7 @@ export default function DashboardPage() {
           <Card
             title="Recent Check-ins"
             subtitle={`Last ${recent.length} across all dates`}
-            icon={<IconClock size={16} />}
+            icon={<IconClock size={15} />}
             action={{ label: 'View all', onClick: () => goToSelfieReview('all') }}
           >
             {recent.length === 0 ? (
@@ -241,18 +241,18 @@ export default function DashboardPage() {
           <Card
             title="Weekly Trend"
             subtitle="Check-ins · last 7 days"
-            icon={<IconTrendingUp size={16} />}
+            icon={<IconTrendingUp size={15} />}
           >
             <WeeklyChart data={weekly} />
           </Card>
         </div>
 
-        <div className="space-y-4">
-          <Card title="Selfie Quality" icon={<IconCamera size={16} />}>
-            <div className="space-y-3">
+        <div className="space-y-3 md:space-y-4">
+          <Card title="Selfie Quality" icon={<IconCamera size={15} />}>
+            <div className="space-y-2.5 md:space-y-3">
               <div className="flex items-baseline justify-between">
                 <span className="text-xs font-semibold text-textLight">Avg score</span>
-                <span className={`text-2xl font-bold leading-none ${
+                <span className={`text-xl md:text-2xl font-bold leading-none ${
                   selfieSnapshot.avg >= 80 ? 'text-green'
                   : selfieSnapshot.avg >= 60 ? 'text-yellow' : 'text-red'
                 }`}>
@@ -276,12 +276,12 @@ export default function DashboardPage() {
             <Card
               title="Missing Time-Out"
               subtitle={`${missing.length} ${missing.length === 1 ? 'employee' : 'employees'}`}
-              icon={<IconAlert size={16} />}
+              icon={<IconAlert size={15} />}
               tone="warn"
             >
               <div className="space-y-0.5">
                 {missing.map((r) => (
-                  <div key={r.id} className="flex items-center justify-between py-2 rounded-lg">
+                  <div key={r.id} className="flex items-center justify-between py-1.5 md:py-2 rounded-lg">
                     <div className="min-w-0">
                       <p className="text-xs font-semibold text-textDark truncate">
                         {r.profiles?.full_name ?? 'Unknown'}
@@ -306,38 +306,38 @@ export default function DashboardPage() {
             <Card
               title="Pending Leave"
               subtitle={`${pendingLeave} request${pendingLeave === 1 ? '' : 's'}`}
-              icon={<IconClipboard size={16} />}
+              icon={<IconClipboard size={15} />}
               tone="warn"
             >
               <button
                 onClick={() => navigate('/leave')}
-                className="w-full text-xs font-bold text-primary hover:underline text-left py-2"
+                className="w-full text-xs font-bold text-primary hover:underline text-left py-1.5 md:py-2"
               >
                 Review requests →
               </button>
             </Card>
           )}
 
-          <Card title="Quick Actions" icon={<IconBolt size={16} />}>
+          <Card title="Quick Actions" icon={<IconBolt size={15} />}>
             <div className="space-y-1.5">
               <ActionButton
-                icon={<IconFileText size={14} />}
+                icon={<IconFileText size={13} />}
                 label="Export today's PDF"
                 onClick={handleExportToday}
                 disabled={todayRecords.length === 0}
               />
               <ActionButton
-                icon={<IconCamera size={14} />}
+                icon={<IconCamera size={13} />}
                 label="Review selfies"
                 onClick={() => goToSelfieReview('all')}
               />
               <ActionButton
-                icon={<IconClipboard size={14} />}
+                icon={<IconClipboard size={13} />}
                 label="All attendance"
                 onClick={() => navigate('/records')}
               />
               <ActionButton
-                icon={<IconUsers size={14} />}
+                icon={<IconUsers size={13} />}
                 label="Manage employees"
                 onClick={() => navigate('/employees')}
               />
@@ -358,72 +358,40 @@ function WorkforceCard({ workforce }) {
 
   return (
     <div className="bg-white rounded-2xl border border-border shadow-card overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-3.5 border-b border-border/60">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-primary-light flex items-center justify-center text-primary">
-            <IconPulse size={15} />
+      <div className="flex items-center justify-between px-4 md:px-5 py-3 md:py-3.5 border-b border-border/60">
+        <div className="flex items-center gap-2.5 md:gap-3 min-w-0">
+          <div className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-primary-light flex items-center justify-center text-primary shrink-0">
+            <IconPulse size={14} />
           </div>
-          <div>
-            <h3 className="text-sm font-bold text-textDark">Workforce Availability</h3>
-            <p className="text-[10px] text-textLight">Who's in, who's out, who's absent</p>
+          <div className="min-w-0">
+            <h3 className="text-xs md:text-sm font-bold text-textDark truncate">
+              Workforce Availability
+            </h3>
+            <p className="text-[10px] text-textLight truncate">
+              Who's in, who's out, who's absent
+            </p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <Pill label="On Duty" value={onDuty.length} tone="green" />
-            <Pill label="On Leave" value={onLeave.length} tone="blue" />
-            <Pill label="Absent" value={absent.length} tone="red" />
-            <Pill label="Off" value={offDuty.length} tone="gray" />
-          </div>
-          <span className="text-[10px] font-bold text-textLight">
-            {total} {total === 1 ? 'employee' : 'employees'}
-          </span>
-        </div>
+        <span className="text-[10px] font-bold text-textLight shrink-0 ml-2">
+          {total} {total === 1 ? 'employee' : 'employees'}
+        </span>
       </div>
 
       {total === 0 ? (
-        <p className="text-sm text-textLight text-center py-8">No employees yet.</p>
+        <p className="text-xs md:text-sm text-textLight text-center py-6 md:py-8">No employees yet.</p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-2 p-2">
           {onDuty.map((e) => (
-            <WfRow
-              key={e.userId}
-              dot="bg-green animate-pulse"
-              name={e.fullName}
-              empId={e.employeeId}
-              meta={`${fmtMinutes(e.minutesOn)} on`}
-              metaColor="text-green"
-            />
+            <WfRow key={e.userId} dot="bg-green animate-pulse" name={e.fullName} empId={e.employeeId} meta={`${fmtMinutes(e.minutesOn)} on`} metaColor="text-green" />
           ))}
           {onLeave.map((e) => (
-            <WfRow
-              key={e.userId}
-              dot="bg-blue"
-              name={e.fullName}
-              empId={e.employeeId}
-              meta="On leave"
-              metaColor="text-blue"
-            />
+            <WfRow key={e.userId} dot="bg-blue" name={e.fullName} empId={e.employeeId} meta="On leave" metaColor="text-blue" />
           ))}
           {absent.map((e) => (
-            <WfRow
-              key={e.userId}
-              dot="bg-red"
-              name={e.fullName}
-              empId={e.employeeId}
-              meta="Absent"
-              metaColor="text-red"
-            />
+            <WfRow key={e.userId} dot="bg-red" name={e.fullName} empId={e.employeeId} meta="Absent" metaColor="text-red" />
           ))}
           {offDuty.map((e) => (
-            <WfRow
-              key={e.userId}
-              dot="bg-textFaint"
-              name={e.fullName}
-              empId={e.employeeId}
-              meta={e.timeOut ? `Out ${formatTime(e.timeOut)}` : 'Off'}
-              metaColor="text-textLight"
-            />
+            <WfRow key={e.userId} dot="bg-textFaint" name={e.fullName} empId={e.employeeId} meta={e.timeOut ? `Out ${formatTime(e.timeOut)}` : 'Off'} metaColor="text-textLight" />
           ))}
         </div>
       )}
@@ -431,37 +399,18 @@ function WorkforceCard({ workforce }) {
   );
 }
 
-function Pill({ label, value, tone }) {
-  const tones = {
-    green: 'bg-greenLight text-green border-green/20',
-    red: 'bg-redLight text-red border-red/20',
-    blue: 'bg-blueLight text-blue border-blue/20',
-    gray: 'bg-bg text-textLight border-border',
-  };
-  const isZero = !value;
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-bold ${
-        isZero ? 'bg-bg text-textFaint border-border' : tones[tone]
-      }`}
-    >
-      {value} <span className="opacity-70">{label}</span>
-    </span>
-  );
-}
-
 function WfRow({ dot, name, empId, meta, metaColor }) {
   return (
-    <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-bg transition">
-      <span className={`w-2 h-2 rounded-full shrink-0 ${dot}`} />
-      <div className="w-7 h-7 rounded-full bg-primary-light flex items-center justify-center text-primary text-[10px] font-bold shrink-0">
+    <div className="flex items-center gap-2 px-2.5 md:px-3 py-1.5 md:py-2 rounded-lg hover:bg-bg transition">
+      <span className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full shrink-0 ${dot}`} />
+      <div className="w-6 h-6 md:w-7 md:h-7 rounded-full bg-primary-light flex items-center justify-center text-primary text-[9px] md:text-[10px] font-bold shrink-0">
         {name?.[0]?.toUpperCase() ?? '?'}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-xs font-semibold text-textDark truncate">{name}</p>
-        <p className="text-[10px] text-textLight truncate">{empId}</p>
+        <p className="text-[11px] md:text-xs font-semibold text-textDark truncate">{name}</p>
+        <p className="text-[9px] md:text-[10px] text-textLight truncate">{empId}</p>
       </div>
-      <p className={`text-[10px] font-semibold shrink-0 ${metaColor}`}>{meta}</p>
+      <p className={`text-[9px] md:text-[10px] font-semibold shrink-0 ${metaColor}`}>{meta}</p>
     </div>
   );
 }
@@ -475,26 +424,29 @@ function Card({ title, subtitle, icon, action, tone, children }) {
   const iconTone = tone === 'warn' ? 'bg-yellow/15 text-yellow' : 'bg-bg text-textMedium';
 
   return (
-    <div className={`${bgTone} rounded-2xl border ${borderTone} shadow-card hover:shadow-card-hover transition-shadow duration-400 overflow-hidden`}>
-      <div className="flex items-center justify-between px-5 py-3.5 border-b border-border/60">
-        <div className="flex items-center gap-3">
+    <div className={`${bgTone} rounded-2xl border ${borderTone} shadow-card overflow-hidden`}>
+      <div className="flex items-center justify-between px-4 md:px-5 py-2.5 md:py-3.5 border-b border-border/60">
+        <div className="flex items-center gap-2 md:gap-3 min-w-0">
           {icon && (
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${iconTone}`}>
+            <div className={`w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center shrink-0 ${iconTone}`}>
               {icon}
             </div>
           )}
-          <div>
-            <h3 className="text-sm font-bold text-textDark">{title}</h3>
-            {subtitle && <p className="text-[10px] text-textLight">{subtitle}</p>}
+          <div className="min-w-0">
+            <h3 className="text-xs md:text-sm font-bold text-textDark truncate">{title}</h3>
+            {subtitle && <p className="text-[10px] text-textLight truncate">{subtitle}</p>}
           </div>
         </div>
         {action && (
-          <button onClick={action.onClick} className="text-[11px] font-bold text-primary hover:underline">
+          <button
+            onClick={action.onClick}
+            className="text-[11px] font-bold text-primary hover:underline shrink-0 ml-2"
+          >
             {action.label}
           </button>
         )}
       </div>
-      <div className="p-4">{children}</div>
+      <div className="p-3 md:p-4">{children}</div>
     </div>
   );
 }
@@ -511,18 +463,18 @@ function LiveRow({ record: r }) {
     mins = Math.floor((diffMs % 3600000) / 60000);
   }
   return (
-    <div className="flex items-center gap-2.5 py-2">
-      <span className="w-2 h-2 rounded-full bg-green animate-pulse shrink-0" />
-      <div className="w-7 h-7 rounded-full bg-primary-light flex items-center justify-center text-primary text-[10px] font-bold shrink-0">
+    <div className="flex items-center gap-2 py-1.5 md:py-2">
+      <span className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-green animate-pulse shrink-0" />
+      <div className="w-6 h-6 md:w-7 md:h-7 rounded-full bg-primary-light flex items-center justify-center text-primary text-[9px] md:text-[10px] font-bold shrink-0">
         {(r.profiles?.full_name ?? '?')[0].toUpperCase()}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-xs font-semibold text-textDark truncate">
+        <p className="text-[11px] md:text-xs font-semibold text-textDark truncate">
           {r.profiles?.full_name ?? 'Unknown'}
         </p>
-        <p className="text-[10px] text-textLight">in {formatTime(r.time_in)}</p>
+        <p className="text-[9px] md:text-[10px] text-textLight">in {formatTime(r.time_in)}</p>
       </div>
-      <span className="text-[11px] font-bold text-green shrink-0">
+      <span className="text-[10px] md:text-[11px] font-bold text-green shrink-0">
         {hours}h {mins}m
       </span>
     </div>
@@ -536,29 +488,29 @@ function CheckinRow({ record: r }) {
   const score = r.selfie_quality_score;
 
   return (
-    <div className="flex items-center gap-2.5 py-2">
+    <div className="flex items-center gap-2 py-1.5 md:py-2">
       {url ? (
         <img
           src={url}
           alt=""
-          className="w-8 h-8 rounded-lg object-cover border border-border shrink-0"
+          className="w-7 h-7 md:w-8 md:h-8 rounded-lg object-cover border border-border shrink-0"
           onError={(e) => { e.target.style.display = 'none'; }}
         />
       ) : (
-        <div className="w-8 h-8 rounded-lg bg-bg flex items-center justify-center text-textLight text-xs shrink-0">
+        <div className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-bg flex items-center justify-center text-textLight text-xs shrink-0">
           —
         </div>
       )}
       <div className="flex-1 min-w-0">
-        <p className="text-xs font-semibold text-textDark truncate">
+        <p className="text-[11px] md:text-xs font-semibold text-textDark truncate">
           {r.profiles?.full_name ?? 'Unknown'}
         </p>
-        <p className="text-[10px] text-textLight truncate">
+        <p className="text-[9px] md:text-[10px] text-textLight truncate">
           {r.date} · {formatTime(r.time_in)}
         </p>
       </div>
       {score !== null && score !== undefined ? (
-        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${
+        <span className={`text-[9px] md:text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${
           score >= 80 ? 'bg-greenLight text-green'
           : score >= 60 ? 'bg-yellowLight text-yellow'
           : 'bg-redLight text-red'
@@ -582,26 +534,26 @@ function WeeklyChart({ data }) {
   const max = Math.max(...data.map((d) => d.total || 0), 1);
 
   return (
-    <div className="flex items-end justify-between gap-2 h-32 px-1">
+    <div className="flex items-end justify-between gap-1.5 md:gap-2 h-24 md:h-32 px-1">
       {data.map((d) => {
         const heightPct = ((d.total || 0) / max) * 100;
         const dayLabel = new Date(d.date).toLocaleDateString('en-PH', { weekday: 'short' });
         const isZero = !d.total;
         return (
-          <div key={d.date} className="flex-1 flex flex-col items-center gap-2">
-            <span className={`text-[11px] font-bold ${isZero ? 'text-textFaint' : 'text-textDark'}`}>
+          <div key={d.date} className="flex-1 flex flex-col items-center gap-1 md:gap-2">
+            <span className={`text-[10px] md:text-[11px] font-bold ${isZero ? 'text-textFaint' : 'text-textDark'}`}>
               {d.total || 0}
             </span>
-            <div className="w-full h-20 flex items-end justify-center">
+            <div className="w-full h-14 md:h-20 flex items-end justify-center">
               <div
-                className={`w-full max-w-[40px] rounded-t-md transition-all ${
+                className={`w-full max-w-[36px] md:max-w-[40px] rounded-t-md transition-all ${
                   isZero ? 'bg-border' : 'bg-gradient-to-t from-primary to-primary/60'
                 }`}
                 style={{ height: `${Math.max(heightPct, 4)}%` }}
                 title={`${d.total} check-ins on ${d.date}`}
               />
             </div>
-            <span className="text-[10px] font-semibold text-textLight uppercase">{dayLabel}</span>
+            <span className="text-[9px] md:text-[10px] font-semibold text-textLight uppercase">{dayLabel}</span>
           </div>
         );
       })}
@@ -619,9 +571,9 @@ function MiniStat({ label, value, tone }) {
     bad: 'bg-redLight text-red',
   };
   return (
-    <div className={`${tones[tone]} rounded-xl px-2 py-2 text-center`}>
+    <div className={`${tones[tone]} rounded-lg md:rounded-xl px-2 py-1.5 md:py-2 text-center`}>
       <p className="text-[9px] font-bold uppercase tracking-wider opacity-70">{label}</p>
-      <p className="text-base font-bold leading-tight mt-0.5">{value}</p>
+      <p className="text-sm md:text-base font-bold leading-tight mt-0.5">{value}</p>
     </div>
   );
 }
@@ -631,20 +583,20 @@ function ActionButton({ icon, label, onClick, disabled }) {
     <button
       onClick={onClick}
       disabled={disabled}
-      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-border bg-white hover:border-primary hover:bg-primary-light/40 transition text-left disabled:opacity-40 disabled:cursor-not-allowed"
+      className="w-full flex items-center gap-2 px-2.5 md:px-3 py-1.5 md:py-2 rounded-xl border border-border bg-white hover:border-primary hover:bg-primary-light/40 transition text-left disabled:opacity-40 disabled:cursor-not-allowed"
     >
       <span className="text-textMedium">{icon}</span>
-      <span className="text-xs font-semibold text-textDark">{label}</span>
+      <span className="text-[11px] md:text-xs font-semibold text-textDark">{label}</span>
     </button>
   );
 }
 
 function EmptyText({ text }) {
-  return <p className="text-xs text-textLight text-center py-6">{text}</p>;
+  return <p className="text-[11px] md:text-xs text-textLight text-center py-4 md:py-6">{text}</p>;
 }
 
 // ─────────────────────────────────────────────────────────
-// Icons
+// Icons — unchanged from your original
 // ─────────────────────────────────────────────────────────
 const iconProps = {
   fill: 'none', stroke: 'currentColor', strokeWidth: 2,
@@ -666,20 +618,10 @@ function IconUsers({ size = 18 }) {
     <path d="M16 3.13a4 4 0 010 7.75" />
   </svg>;
 }
-function IconCheck({ size = 18 }) {
-  return <svg width={size} height={size} viewBox="0 0 24 24" {...iconProps} strokeWidth={2.5}>
-    <path d="M20 6L9 17l-5-5" />
-  </svg>;
-}
 function IconClock({ size = 18 }) {
   return <svg width={size} height={size} viewBox="0 0 24 24" {...iconProps}>
     <circle cx="12" cy="12" r="10" />
     <path d="M12 6v6l4 2" />
-  </svg>;
-}
-function IconX({ size = 18 }) {
-  return <svg width={size} height={size} viewBox="0 0 24 24" {...iconProps} strokeWidth={2.5}>
-    <path d="M18 6L6 18M6 6l12 12" />
   </svg>;
 }
 function IconPulse({ size = 18 }) {

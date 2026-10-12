@@ -9,51 +9,73 @@ export default function Sidebar({ variant = 'desktop' }) {
 
   return (
     <aside
-      className={`bg-white border-r border-border flex flex-col shrink-0 h-full ${
-        isDrawer ? 'w-72 px-3 py-5' : 'w-64 px-3 py-5'
+      className={`bg-white border-r border-border flex-col shrink-0 h-full ${
+        isDrawer
+          ? 'flex w-72 px-3 py-5'
+          : 'hidden md:flex w-64 px-3 py-5'
       }`}
     >
-      {/* Logo */}
-      <div className={`flex items-center gap-3 mb-6 ${isDrawer ? 'pl-1' : 'pl-1'}`}>
-        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center text-white font-bold text-base shadow-brand">
+      {/* ─── Logo ─── */}
+      <div className="flex items-center gap-3 mb-8 px-2">
+        <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center text-white font-bold text-base shadow-brand shrink-0">
           MB
         </div>
-        <div>
-          <p className="text-sm font-bold text-textDark leading-tight">Media Box</p>
-          <p className="text-[10px] font-semibold tracking-wider text-textLight uppercase">
+        <div className="min-w-0">
+          <p className="text-sm font-bold text-textDark leading-tight truncate">
+            Media Box
+          </p>
+          <p className="text-[10px] font-semibold tracking-[0.14em] text-textLight uppercase mt-0.5">
             Admin
           </p>
         </div>
       </div>
 
-      {/* Nav */}
-      <nav className="flex-1 flex flex-col gap-1 overflow-y-auto">
+      {/* ─── Section label ─── */}
+      <p className="px-3 mb-2 text-[10px] font-bold tracking-[0.14em] text-textFaint uppercase">
+        Menu
+      </p>
+
+      {/* ─── Nav ─── */}
+      <nav className="flex-1 flex flex-col gap-0.5 overflow-y-auto">
         {NAV_ITEMS.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-xl transition text-sm font-semibold ${
+              `group relative flex items-center gap-3 px-3 py-2.5 rounded-xl transition text-[13px] font-semibold ${
                 isActive
                   ? 'bg-gradient-to-br from-primary to-primary-dark text-white shadow-md shadow-primary/25'
-                  : 'text-textMedium hover:bg-primary-light/40 hover:text-textDark'
+                  : 'text-textMedium hover:bg-primary-light/30 hover:text-textDark'
               }`
             }
           >
-            <item.icon size={18} strokeWidth={2} />
-            <span>{item.label}</span>
+            {({ isActive }) => (
+              <>
+                {isActive && (
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-white/40 rounded-r-full" />
+                )}
+                <item.icon
+                  size={17}
+                  strokeWidth={isActive ? 2.4 : 2}
+                  className="shrink-0"
+                />
+                <span className="truncate">{item.label}</span>
+              </>
+            )}
           </NavLink>
         ))}
       </nav>
 
-      {/* Sign out */}
-      <button
-        onClick={signOut}
-        className="mt-4 flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-textMedium hover:bg-redLight hover:text-red transition"
-      >
-        <LogOut size={18} strokeWidth={2} />
-        <span>Sign Out</span>
-      </button>
+      {/* ─── Sign out ─── */}
+      <div className="mt-4 pt-4 border-t border-border/60">
+        <button
+          onClick={signOut}
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl w-full text-[13px] font-semibold text-textMedium hover:bg-redLight hover:text-red transition"
+        >
+          <LogOut size={17} strokeWidth={2} className="shrink-0" />
+          <span>Sign Out</span>
+        </button>
+      </div>
     </aside>
   );
 }

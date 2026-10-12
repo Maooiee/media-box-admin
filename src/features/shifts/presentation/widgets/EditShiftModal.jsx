@@ -145,16 +145,16 @@ export default function EditShiftModal({ open, shift, onClose, onSaved }) {
         )}
 
         <Field label="SHIFT TYPE">
-          <div className="grid grid-cols-5 gap-2">
+          <div className="flex flex-wrap gap-2">
             {SHIFT_KINDS.map((k) => (
               <button
                 key={k.key}
                 type="button"
                 onClick={() => pickKind(k)}
-                className={`px-3 py-2.5 rounded-xl text-xs font-semibold transition ${
+                className={`px-4 py-2.5 rounded-xl text-xs font-semibold transition whitespace-nowrap ${
                   kind === k.key
-                    ? 'bg-primary text-white shadow-sm'
-                    : 'bg-white text-textMedium border border-border hover:bg-bg'
+                    ? 'bg-gradient-to-br from-primary to-primary-dark text-white shadow-sm shadow-primary/25'
+                    : 'bg-white text-textMedium border border-border hover:border-primary/40 hover:bg-primary-light/20'
                 }`}
               >
                 {k.label}
@@ -172,7 +172,7 @@ export default function EditShiftModal({ open, shift, onClose, onSaved }) {
           />
         </Field>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3">
           <Field label="START HOUR">
             <select
               value={startHour}
@@ -217,8 +217,8 @@ export default function EditShiftModal({ open, shift, onClose, onSaved }) {
           <div className="p-3 rounded-xl bg-red-50 text-red-700 text-sm">{error}</div>
         )}
 
-        <div className="flex justify-between gap-2 pt-2">
-          <div>
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-between gap-3 pt-2">
+          <div className="flex justify-center sm:justify-start">
             {isEdit && !confirmDelete && (
               <Button
                 variant="ghost"
@@ -231,9 +231,9 @@ export default function EditShiftModal({ open, shift, onClose, onSaved }) {
               </Button>
             )}
             {isEdit && confirmDelete && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap justify-center">
                 <span className="text-xs text-red-700 font-semibold">
-                  Sure?
+                  Delete this shift?
                 </span>
                 <Button variant="danger" size="sm" onClick={handleDelete} disabled={saving}>
                   Yes, delete
@@ -245,11 +245,11 @@ export default function EditShiftModal({ open, shift, onClose, onSaved }) {
             )}
           </div>
 
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={onClose} disabled={saving}>
+          <div className="flex gap-2 sm:ml-auto">
+            <Button variant="outline" onClick={onClose} disabled={saving} className="flex-1 sm:flex-none">
               Cancel
             </Button>
-            <Button icon={Save} onClick={handleSave} disabled={saving}>
+            <Button icon={Save} onClick={handleSave} disabled={saving} className="flex-1 sm:flex-none">
               {saving ? 'Saving...' : isEdit ? 'Save' : 'Create Shift'}
             </Button>
           </div>
