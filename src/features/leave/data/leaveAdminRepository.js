@@ -143,14 +143,12 @@ export const leaveAdminRepository = {
     }
 
     // ─── Notify the employee (in-app) ───
-    try {
-      const typeLabel = LEAVE_TYPES[req.leave_type]?.label ?? 'Leave';
-      const range = dateRangeLabel(req.start_date, req.end_date, null);
-
-      await supabase.from('notifications').insert({
+    const { error: notifErr } = await supabase
+      .from('notifications')
+      .insert({
         user_id: req.user_id,
         title: 'Leave Approved ✓',
-        body: `Your ${typeLabel} request for ${range} has been approved.`,
+        body: `Your ${LEAVE_TYPES[req.leave_type]?.label ?? 'Leave'} request for ${dateRangeLabel(req.start_date, req.end_date, null)} has been approved.`,
         kind: 'leave_approved',
         data: {
           leave_id: req.id,
@@ -159,17 +157,9 @@ export const leaveAdminRepository = {
           status: 'approved',
         },
       });
-    } catch (e) {
-      console.warn('Notification insert failed (approve):', e);
-    }
 
-    // Optional: also try to send a push via edge function
-    try {
-      await supabase.functions.invoke('notify-leave-decision', {
-        body: { leave_request_id: requestId },
-      });
-    } catch (e) {
-      // Silent — edge function might not exist
+    if (notifErr) {
+      console.error('Notification insert failed (approve):', notifErr);
     }
 
     return { success: true };
@@ -177,7 +167,6 @@ export const leaveAdminRepository = {
 
   /** Reject a request with an optional note. */
   async reject(requestId, adminId, note = null) {
-    // Fetch first so we have the user_id + dates for the notification
     const { data: req, error: getErr } = await supabase
       .from('leave_requests')
       .select('id, user_id, leave_type, start_date, end_date, status')
@@ -199,16 +188,14 @@ export const leaveAdminRepository = {
     if (error) throw error;
 
     // ─── Notify the employee (in-app) ───
-    try {
-      const typeLabel = LEAVE_TYPES[req.leave_type]?.label ?? 'Leave';
-      const range = dateRangeLabel(req.start_date, req.end_date, null);
-
-      await supabase.from('notifications').insert({
+    const { error: notifErr } = await supabase
+      .from('notifications')
+      .insert({
         user_id: req.user_id,
         title: 'Leave Rejected',
         body: note
-          ? `Your ${typeLabel} request for ${range} was rejected. Note: ${note}`
-          : `Your ${typeLabel} request for ${range} was rejected.`,
+          ? `Your ${LEAVE_TYPES[req.leave_type]?.label ?? 'Leave'} request for ${dateRangeLabel(req.start_date, req.end_date, null)} was rejected. Note: ${note}`
+          : `Your ${LEAVE_TYPES[req.leave_type]?.label ?? 'Leave'} request for ${dateRangeLabel(req.start_date, req.end_date, null)} was rejected.`,
         kind: 'leave_rejected',
         data: {
           leave_id: req.id,
@@ -218,17 +205,9 @@ export const leaveAdminRepository = {
           review_note: note,
         },
       });
-    } catch (e) {
-      console.warn('Notification insert failed (reject):', e);
-    }
 
-    // Optional push
-    try {
-      await supabase.functions.invoke('notify-leave-decision', {
-        body: { leave_request_id: requestId },
-      });
-    } catch (e) {
-      // Silent
+    if (notifErr) {
+      console.error('Notification insert failed (reject):', notifErr);
     }
 
     return { success: true };
