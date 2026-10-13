@@ -24,10 +24,14 @@ const COLORS = {
   amberSoft: [254, 243, 199],
   red: [185, 28, 28],
   redSoft: [254, 226, 226],
+  blue: [29, 78, 216],
+  blueSoft: [219, 234, 254],
+  slate: [100, 116, 139],
+  slateSoft: [241, 245, 249],
 };
 
 const PAGE = {
-  marginX: 40,
+  marginX: 36,
   marginTop: 40,
   marginBottom: 56,
   width: 595.28,
@@ -63,6 +67,28 @@ function initialsOf(name) {
     .map((p) => p[0])
     .join('')
     .toUpperCase();
+}
+
+/**
+ * Split a string into lines that fit within maxWidth at the current font.
+ */
+function wrapText(doc, text, maxWidth) {
+  if (!text) return [''];
+  const words = String(text).split(/\s+/);
+  const lines = [];
+  let line = '';
+
+  for (const word of words) {
+    const test = line ? `${line} ${word}` : word;
+    if (doc.getTextWidth(test) <= maxWidth) {
+      line = test;
+    } else {
+      if (line) lines.push(line);
+      line = word;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
 }
 
 // ─── Load image as centered square-cropped PNG data URL ───
@@ -116,59 +142,58 @@ async function loadImage(url) {
 // ─── Header (full-width banner) ───
 function drawHeader(doc, { orgName, dateRange, recordCount }) {
   const { marginX, width } = PAGE;
-  const bannerH = 96;
+  const bannerH = 88;
 
   // Banner
   doc.setFillColor(...COLORS.primary);
   doc.rect(0, 0, width, bannerH, 'F');
 
-  // Subtle darker strip at the very bottom of the banner
+  // Darker strip at the bottom of the banner
   doc.setFillColor(...COLORS.primaryDark);
   doc.rect(0, bannerH - 2, width, 2, 'F');
 
   // Logo mark
-  const logoSize = 46;
+  const logoSize = 42;
   const logoX = marginX;
   const logoY = (bannerH - logoSize) / 2;
   doc.setFillColor(...COLORS.white);
-  doc.roundedRect(logoX, logoY, logoSize, logoSize, 10, 10, 'F');
+  doc.roundedRect(logoX, logoY, logoSize, logoSize, 9, 9, 'F');
 
   doc.setTextColor(...COLORS.primary);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(20);
-  doc.text('MB', logoX + logoSize / 2, logoY + logoSize / 2 + 7, {
+  doc.setFontSize(18);
+  doc.text('MB', logoX + logoSize / 2, logoY + logoSize / 2 + 6, {
     align: 'center',
   });
 
   // Org name + subtitle
   doc.setTextColor(...COLORS.white);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(22);
-  doc.text(orgName || 'Media Box', logoX + logoSize + 18, 44);
+  doc.setFontSize(20);
+  doc.text(orgName || 'Media Box', logoX + logoSize + 16, 42);
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.text('Attendance Report', logoX + logoSize + 18, 62);
+  doc.setFontSize(9.5);
+  doc.text('Attendance Report', logoX + logoSize + 16, 58);
 
-  // Right-aligned meta block
+  // Right-aligned meta
   const rightX = width - marginX;
 
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.text('REPORT RANGE', rightX, 30, { align: 'right' });
+  doc.setFontSize(7);
+  doc.text('REPORT RANGE', rightX, 28, { align: 'right' });
 
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.text(String(dateRange).toUpperCase(), rightX, 46, { align: 'right' });
+  doc.setFontSize(10.5);
+  doc.text(String(dateRange).toUpperCase(), rightX, 42, { align: 'right' });
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.text(fmtDateTime(), rightX, 62, { align: 'right' });
+  doc.setFontSize(7.5);
+  doc.text(fmtDateTime(), rightX, 58, { align: 'right' });
 
-  // Thin white rule above meta
-  doc.setDrawColor(255, 255, 255, 0.35);
-  doc.setLineWidth(0.5);
-  doc.line(rightX - 130, 22, rightX, 22);
+  doc.setDrawColor(255, 255, 255);
+  doc.setLineWidth(0.4);
+  doc.line(rightX - 120, 20, rightX, 20);
 }
 
 // ─── Stat cards ───
@@ -177,7 +202,7 @@ function drawStatCards(doc, y, cards) {
   const innerW = width - marginX * 2;
   const gap = 10;
   const cardW = (innerW - gap * (cards.length - 1)) / cards.length;
-  const cardH = 60;
+  const cardH = 56;
 
   cards.forEach((c, i) => {
     const x = marginX + i * (cardW + gap);
@@ -186,23 +211,23 @@ function drawStatCards(doc, y, cards) {
     doc.setFillColor(...COLORS.white);
     doc.setDrawColor(...COLORS.line);
     doc.setLineWidth(0.7);
-    doc.roundedRect(x, y, cardW, cardH, 12, 12, 'FD');
+    doc.roundedRect(x, y, cardW, cardH, 10, 10, 'FD');
 
-    // Accent bar (left, inset)
+    // Accent bar
     doc.setFillColor(...(c.accent || COLORS.primary));
     doc.roundedRect(x + 6, y + 10, 3, cardH - 20, 1.5, 1.5, 'F');
 
     // Label
     doc.setTextColor(...COLORS.soft);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7);
-    doc.text(String(c.label).toUpperCase(), x + 16, y + 22);
+    doc.setFontSize(6.5);
+    doc.text(String(c.label).toUpperCase(), x + 14, y + 20);
 
     // Value
     doc.setTextColor(...(c.color || COLORS.ink));
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(22);
-    doc.text(String(c.value), x + 16, y + 46);
+    doc.setFontSize(20);
+    doc.text(String(c.value), x + 14, y + 42);
   });
 
   return y + cardH;
@@ -230,7 +255,7 @@ export async function exportAttendancePDF(
 
   drawHeader(doc, { orgName, dateRange, recordCount: records.length });
 
-  let y = 124;
+  let y = 116;
   y = drawStatCards(doc, y, [
     { label: 'Total Records', value: records.length, accent: COLORS.ink, color: COLORS.ink },
     { label: 'Present', value: present, accent: COLORS.green, color: COLORS.green },
@@ -238,9 +263,9 @@ export async function exportAttendancePDF(
     { label: 'Absent', value: absent, accent: COLORS.red, color: COLORS.red },
   ]);
 
-  y += 24;
+  y += 22;
 
-  // Section title above the table
+  // Section title
   doc.setTextColor(...COLORS.ink);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
@@ -258,8 +283,10 @@ export async function exportAttendancePDF(
 
   y += 12;
 
+  // ─── Build body rows ───
+  // Columns: [avatar, employee, id, date, in, out, hours, status, notes]
   const body = records.map((r) => [
-    '', // avatar cell — drawn in didDrawCell
+    '',                                // avatar (drawn in didDrawCell)
     r.employeeName || '—',
     r.employeeId || '—',
     r.date || '—',
@@ -267,56 +294,69 @@ export async function exportAttendancePDF(
     formatTime(r.timeOut),
     hoursWorked(r),
     (r.status || '').toUpperCase(),
+    r.notes || r.admin_note || '—',    // Notes column
   ]);
 
   autoTable(doc, {
     startY: y,
-    head: [['', 'EMPLOYEE', 'ID', 'DATE', 'IN', 'OUT', 'HOURS', 'STATUS']],
+    head: [['', 'EMPLOYEE', 'ID', 'DATE', 'IN', 'OUT', 'HOURS', 'STATUS', 'NOTES']],
     body,
     theme: 'plain',
     styles: {
       font: 'helvetica',
-      fontSize: 9,
-      cellPadding: { top: 11, bottom: 11, left: 8, right: 8 },
+      fontSize: 8.5,
+      cellPadding: { top: 10, bottom: 10, left: 8, right: 8 },
       textColor: COLORS.body,
       lineColor: COLORS.line,
       lineWidth: { top: 0, right: 0, bottom: 0.5, left: 0 },
-      overflow: 'ellipsize',
+      overflow: 'linebreak',
       valign: 'middle',
+      minCellHeight: 40,
     },
     headStyles: {
       fillColor: COLORS.primarySoft,
       textColor: COLORS.primaryDark,
       fontStyle: 'bold',
-      fontSize: 7.5,
-      cellPadding: { top: 12, bottom: 12, left: 8, right: 8 },
+      fontSize: 7,
+      cellPadding: { top: 10, bottom: 10, left: 8, right: 8 },
     },
     alternateRowStyles: { fillColor: COLORS.band },
     columnStyles: {
-      0: { cellWidth: 44, minCellHeight: 46 },
-      1: { cellWidth: 'auto', fontStyle: 'bold', textColor: COLORS.ink },
-      2: { cellWidth: 58, fontSize: 8.5, textColor: COLORS.soft },
-      3: { cellWidth: 62, fontSize: 8.5, textColor: COLORS.soft },
-      4: { cellWidth: 60, fontSize: 8.5 },
-      5: { cellWidth: 60, fontSize: 8.5 },
-      6: { cellWidth: 52, fontSize: 8.5, fontStyle: 'bold', textColor: COLORS.ink },
-      7: { cellWidth: 64, halign: 'center' },
+      0: { cellWidth: 42, minCellHeight: 44 },
+      1: { cellWidth: 78, fontStyle: 'bold', textColor: COLORS.ink, fontSize: 8 },
+      2: { cellWidth: 44, fontSize: 7.5, textColor: COLORS.soft },
+      3: { cellWidth: 54, fontSize: 7.5, textColor: COLORS.soft },
+      4: { cellWidth: 42, fontSize: 7.5 },
+      5: { cellWidth: 42, fontSize: 7.5 },
+      6: { cellWidth: 40, fontSize: 7.5, fontStyle: 'bold', textColor: COLORS.ink },
+      7: { cellWidth: 52, halign: 'center' },
+      8: { cellWidth: 'auto', fontSize: 7.5, textColor: COLORS.body, fontStyle: 'normal' },
     },
     didParseCell: (data) => {
-      if (data.section === 'head' && data.column.index === 0) {
-        data.cell.styles.fillColor = COLORS.primarySoft;
+      // Gray out em-dash notes
+      if (data.section === 'body' && data.column.index === 8) {
+        if (data.cell.raw === '—') {
+          data.cell.styles.textColor = COLORS.faint;
+          data.cell.styles.halign = 'center';
+        }
+      }
+      // Make absent/late employee names slightly muted
+      if (data.section === 'body' && data.column.index === 1) {
+        const status = String(body[data.row.index][7]).toLowerCase();
+        if (status === 'absent') {
+          data.cell.styles.textColor = COLORS.soft;
+        }
       }
     },
     didDrawCell: (data) => {
       // ─── Avatar / photo cell ───
       if (data.section === 'body' && data.column.index === 0) {
         const img = photos[data.row.index];
-        const size = 32;
+        const size = 30;
         const cx = data.cell.x + (data.cell.width - size) / 2;
         const cy = data.cell.y + (data.cell.height - size) / 2;
         const radius = 6;
 
-        // Rounded-rect clip
         doc.saveGraphicsState();
         doc.roundedRect(cx, cy, size, size, radius, radius, null);
         doc.clip();
@@ -334,7 +374,7 @@ export async function exportAttendancePDF(
 
           doc.setTextColor(...COLORS.primaryDark);
           doc.setFont('helvetica', 'bold');
-          doc.setFontSize(11);
+          doc.setFontSize(10);
           doc.text(
             initialsOf(records[data.row.index]?.employeeName),
             cx + size / 2,
@@ -358,8 +398,8 @@ export async function exportAttendancePDF(
         data.cell.raw
       ) {
         const status = String(data.cell.raw).toLowerCase();
-        let bg = COLORS.band;
-        let fg = COLORS.soft;
+        let bg = COLORS.slateSoft;
+        let fg = COLORS.slate;
         if (status === 'present') {
           bg = COLORS.greenSoft;
           fg = COLORS.green;
@@ -369,15 +409,18 @@ export async function exportAttendancePDF(
         } else if (status === 'absent') {
           bg = COLORS.redSoft;
           fg = COLORS.red;
+        } else if (status === 'on_leave' || status === 'on leave') {
+          bg = COLORS.blueSoft;
+          fg = COLORS.blue;
         }
 
         const label = String(data.cell.raw).toUpperCase();
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(7);
+        doc.setFontSize(6.5);
         const textW = doc.getTextWidth(label);
-        const padX = 9;
-        const pillW = textW + padX * 2;
-        const pillH = 17;
+        const padX = 8;
+        const pillW = Math.min(textW + padX * 2, data.cell.width - 8);
+        const pillH = 15;
         const px = data.cell.x + (data.cell.width - pillW) / 2;
         const py = data.cell.y + (data.cell.height - pillH) / 2;
 
@@ -385,8 +428,9 @@ export async function exportAttendancePDF(
         doc.roundedRect(px, py, pillW, pillH, pillH / 2, pillH / 2, 'F');
 
         doc.setTextColor(...fg);
-        doc.text(label, px + pillW / 2, py + pillH / 2 + 2.5, {
+        doc.text(label, px + pillW / 2, py + pillH / 2 + 2, {
           align: 'center',
+          maxWidth: pillW - 4,
         });
 
         data.cell.text = [];
@@ -421,18 +465,22 @@ export async function exportAttendancePDF(
 
     doc.setTextColor(...COLORS.ink);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8.5);
+    doc.setFontSize(8);
     doc.text(orgName, PAGE.marginX + 12, footerY);
 
     doc.setTextColor(...COLORS.soft);
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.text('· Attendance Report', PAGE.marginX + 12 + doc.getTextWidth(orgName) + 4, footerY);
+    doc.setFontSize(7.5);
+    doc.text(
+      '· Attendance Report',
+      PAGE.marginX + 12 + doc.getTextWidth(orgName) + 4,
+      footerY
+    );
 
     // Right label
     doc.setTextColor(...COLORS.soft);
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
+    doc.setFontSize(7.5);
     doc.text(`Page ${i} of ${pageCount}`, PAGE.width - PAGE.marginX, footerY, {
       align: 'right',
     });
@@ -442,7 +490,7 @@ export async function exportAttendancePDF(
   doc.save(`mediabox-attendance-${stamp}.pdf`);
 }
 
-// Kept for compatibility — nothing imports it anymore.
+// Kept for compatibility
 export async function exportSelfieReviewPDF(records, opts = {}) {
   return exportAttendancePDF(records, {
     orgName: opts.orgName || 'Media Box',
