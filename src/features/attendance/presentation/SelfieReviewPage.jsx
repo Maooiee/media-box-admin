@@ -29,12 +29,16 @@ export default function SelfieReviewPage() {
     loadRecords();
   }, [rangeFilter]);
 
-  async function loadRecords() {
+    async function loadRecords() {
     setLoading(true);
     try {
       const raw = await attendanceRepository.fetchRecords({ filter: rangeFilter });
+
+      // Only show records that actually have a selfie
+      const withSelfie = raw.filter((row) => row.selfie_url);
+
       setRecords(
-        raw.map((row) => ({
+        withSelfie.map((row) => ({
           ...createAttendanceRecord(row),
           userId: row.user_id ?? row.userId,
         }))
@@ -81,8 +85,7 @@ export default function SelfieReviewPage() {
     return sorted;
   }, [records, search, flaggedOnly, sortBy]);
 
-  const stats = useMemo(() => {
-    const withSelfie = records.filter((r) => r.selfieUrl).length;
+   const stats = useMemo(() => {
     const scored = records.filter((r) => r.selfieQualityScore !== null);
     const flagged = records.filter(
       (r) =>
@@ -97,8 +100,8 @@ export default function SelfieReviewPage() {
         : 0;
     return {
       total: records.length,
-      withSelfie,
-      noSelfie: records.length - withSelfie,
+      withSelfie: records.length,   // all records now have selfies
+      noSelfie: 0,                  // nothing without a selfie
       flagged,
       avg,
     };
@@ -162,7 +165,6 @@ export default function SelfieReviewPage() {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-2 md:gap-3">
           <StatTile label="Total" value={stats.total} tone="brand" icon={<Camera size={13} />} />
           <StatTile label="With Selfie" value={stats.withSelfie} tone="good" icon={<CheckCircle2 size={13} />} />
-          <StatTile label="No Selfie" value={stats.noSelfie} tone="muted" icon={<Users size={13} />} />
           <StatTile label="Flagged" value={stats.flagged} tone="warn" icon={<AlertTriangle size={13} />} />
           <StatTile
             label="Avg Score"
