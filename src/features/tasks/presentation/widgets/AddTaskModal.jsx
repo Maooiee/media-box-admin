@@ -1,16 +1,26 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
-import { Plus, User, Calendar as CalendarIcon, Clock, Tag, Type, AlignLeft, X, Check } from 'lucide-react';
+import { Plus, User, Calendar as CalendarIcon, Tag, Type, AlignLeft, X, Check } from 'lucide-react';
 import Modal from '../../../../shared/components/Modal';
 import Button from '../../../../shared/components/Button';
 import { tasksRepository } from '../../data/tasksRepository';
 import { employeesRepository } from '../../../employees/data/employeesRepository';
 import { initials } from '../../../../core/utils/formatters';
+import DatePicker from '../../../../shared/components/DatePicker';
 
 const STATUSES = [
   { key: 'backlog',    label: 'Backlog',  className: 'bg-bg text-textMedium border-border' },
   { key: 'onProgress', label: 'Progress', className: 'bg-yellowLight text-yellow border-yellow/30' },
   { key: 'onHold',     label: 'Hold',     className: 'bg-redLight text-red border-red/30' },
   { key: 'done',       label: 'Done',     className: 'bg-greenLight text-green border-green/30' },
+];
+
+// Mall Hours Quick Picks
+const TIME_PICKS = [
+  { label: '10:00 AM', value: '10:00' }, // Mall Opening
+  { label: '12:00 PM', value: '12:00' }, // Midday
+  { label: '3:00 PM',  value: '15:00' }, // Afternoon
+  { label: '6:00 PM',  value: '18:00' }, // Evening
+  { label: '9:00 PM',  value: '21:00' }, // Mall Closing
 ];
 
 function toLocalDateStr(d) {
@@ -26,26 +36,12 @@ function todayPlus(days) {
   return toLocalDateStr(d);
 }
 
-function dueCountdown(dueDate) {
-  if (!dueDate) return null;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const due = new Date(dueDate);
-  due.setHours(0, 0, 0, 0);
-  const diff = Math.round((due - today) / (1000 * 60 * 60 * 24));
-
-  if (diff < 0)  return { text: `Overdue by ${Math.abs(diff)} day${Math.abs(diff) === 1 ? '' : 's'}`, tone: 'danger' };
-  if (diff === 0) return { text: 'Due today', tone: 'warning' };
-  if (diff === 1) return { text: 'Due tomorrow', tone: 'warning' };
-  return { text: `Due in ${diff} days`, tone: 'normal' };
-}
-
 export default function AddTaskModal({ open, onClose, onCreated }) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [assignedTo, setAssignedTo] = useState('');
   const [dueDate, setDueDate] = useState('');
-  const [dueTime, setDueTime] = useState('');
+  const [dueTime, setDueTime] = useState(''); 
   const [status, setStatus] = useState('backlog');
   const [employees, setEmployees] = useState([]);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -79,10 +75,7 @@ export default function AddTaskModal({ open, onClose, onCreated }) {
     [employees, assignedTo]
   );
 
-  const countdown = dueCountdown(dueDate);
-
-  // Quick-pick chips — highlight when the current dueDate matches
-  const quickPicks = [
+  const quickDatePicks = [
     { label: 'Today',     value: todayPlus(0) },
     { label: 'Tomorrow',  value: todayPlus(1) },
     { label: 'This week', value: todayPlus(3) },
@@ -102,7 +95,7 @@ export default function AddTaskModal({ open, onClose, onCreated }) {
         description: description.trim(),
         status,
         dueDate,
-        dueTime,
+        dueTime: dueTime || null,
         assignedTo,
       });
       onCreated?.();
@@ -123,18 +116,16 @@ export default function AddTaskModal({ open, onClose, onCreated }) {
       maxWidth="max-w-xl"
     >
       <div className="space-y-5">
-        {/* Title */}
         <Field icon={Type} label="TITLE">
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="e.g. Design meeting"
+            placeholder="e.g. Opening checklist"
             className="w-full px-4 py-3 rounded-xl border border-border bg-white text-sm font-medium text-textDark placeholder:text-textLight/70 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition"
           />
         </Field>
 
-        {/* Description */}
         <Field icon={AlignLeft} label="DESCRIPTION">
           <textarea
             value={description}
@@ -145,7 +136,6 @@ export default function AddTaskModal({ open, onClose, onCreated }) {
           />
         </Field>
 
-        {/* Assignee — rich dropdown */}
         <Field icon={User} label="ASSIGNEE">
           <div className="relative">
             <button
@@ -172,9 +162,7 @@ export default function AddTaskModal({ open, onClose, onCreated }) {
               )}
               <svg
                 className={`w-4 h-4 text-textLight transition-transform shrink-0 ${pickerOpen ? 'rotate-180' : ''}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" viewBox="0 0 24 24"
               >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
@@ -182,11 +170,9 @@ export default function AddTaskModal({ open, onClose, onCreated }) {
 
             {pickerOpen && (
               <div className="absolute z-20 top-full left-0 right-0 mt-2 bg-white border border-border rounded-2xl shadow-2xl overflow-hidden animate-[slideUp_180ms_ease-out]">
-                <div className="max-h-64 overflow-y-auto p-2">
+                <div className="max-h-64 overflow-y-auto p-2 hide-scrollbar">
                   {employees.length === 0 ? (
-                    <p className="text-sm text-textLight px-3 py-6 text-center">
-                      No employees
-                    </p>
+                    <p className="text-sm text-textLight px-3 py-6 text-center">No employees</p>
                   ) : (
                     employees.map((e) => {
                       const selected = e.id === assignedTo;
@@ -206,16 +192,10 @@ export default function AddTaskModal({ open, onClose, onCreated }) {
                             {initials(e.full_name)}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-textDark truncate">
-                              {e.full_name}
-                            </p>
-                            <p className="text-[10px] text-textLight truncate">
-                              {e.employee_id} · {e.position}
-                            </p>
+                            <p className="text-sm font-semibold text-textDark truncate">{e.full_name}</p>
+                            <p className="text-[10px] text-textLight truncate">{e.employee_id}</p>
                           </div>
-                          {selected && (
-                            <Check size={16} className="text-primary shrink-0" />
-                          )}
+                          {selected && <Check size={16} className="text-primary shrink-0" />}
                         </button>
                       );
                     })
@@ -226,11 +206,10 @@ export default function AddTaskModal({ open, onClose, onCreated }) {
           </div>
         </Field>
 
-        {/* Due date */}
-        <Field icon={CalendarIcon} label="DUE DATE">
-          {/* Quick chips */}
-          <div className="flex gap-2 mb-2 flex-wrap">
-            {quickPicks.map((q) => {
+        <Field icon={CalendarIcon} label="DUE DATE & TIME">
+          {/* Date Quick Picks */}
+          <div className="flex gap-2 mb-3 flex-wrap">
+            {quickDatePicks.map((q) => {
               const active = dueDate === q.value;
               return (
                 <button
@@ -258,43 +237,45 @@ export default function AddTaskModal({ open, onClose, onCreated }) {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <input
-              type="date"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-border bg-white text-sm font-medium text-textDark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition"
+          <div className="w-full md:w-1/2 mb-4">
+            <DatePicker 
+              value={dueDate} 
+              onChange={setDueDate} 
+              placeholder="Select a due date" 
             />
-            <div className="relative">
-              <Clock size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-textLight pointer-events-none" />
-              <input
-                type="text"
-                value={dueTime}
-                onChange={(e) => setDueTime(e.target.value)}
-                placeholder="e.g. 10:00 - 11:00"
-                className="w-full pl-10 pr-4 py-3 rounded-xl border border-border bg-white text-sm font-medium text-textDark placeholder:text-textLight/70 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition"
-              />
-            </div>
+          </div>
+
+          {/* Time Quick Picks - Mall Hours (No dropdown input) */}
+          <div className="flex gap-2 flex-wrap">
+            {TIME_PICKS.map((t) => {
+              const active = dueTime === t.value;
+              return (
+                <button
+                  key={t.value}
+                  type="button"
+                  onClick={() => setDueTime(active ? '' : t.value)}
+                  className={`px-2.5 py-1.5 rounded-lg text-[10px] md:text-[11px] font-bold border transition ${
+                    active
+                      ? 'bg-primary-light/40 border-primary/50 text-primary shadow-sm'
+                      : 'bg-bg border-border text-textMedium hover:border-primary/40'
+                  }`}
+                >
+                  {t.label}
+                </button>
+              );
+            })}
+            {dueTime && (
+               <button
+                 type="button"
+                 onClick={() => setDueTime('')}
+                 className="px-2.5 py-1.5 rounded-lg text-[10px] md:text-[11px] font-bold text-textLight hover:text-red transition"
+               >
+                 Clear
+               </button>
+            )}
           </div>
         </Field>
 
-        {/* Countdown hint */}
-        {countdown && (
-          <div
-            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold animate-[fadeIn_200ms_ease-out] ${
-              countdown.tone === 'danger'
-                ? 'bg-redLight text-red border border-red/20'
-                : countdown.tone === 'warning'
-                ? 'bg-yellowLight text-yellow border border-yellow/20'
-                : 'bg-bg text-textMedium'
-            }`}
-          >
-            <Clock size={12} />
-            {countdown.text}
-          </div>
-        )}
-
-        {/* Status picker */}
         <Field icon={Tag} label="STATUS">
           <div className="grid grid-cols-4 gap-2">
             {STATUSES.map((s) => {
@@ -318,13 +299,12 @@ export default function AddTaskModal({ open, onClose, onCreated }) {
         </Field>
 
         {error && (
-          <div className="p-3 rounded-xl bg-redLight text-red text-sm flex items-center gap-2 animate-[fadeIn_200ms_ease-out] border border-red/20">
+          <div className="p-3 rounded-xl bg-redLight text-red text-sm flex items-center gap-2 border border-red/20">
             <X size={14} />
             {error}
           </div>
         )}
 
-        {/* Footer */}
         <div className="flex justify-end gap-2 pt-3 border-t border-border -mx-6 px-6 -mb-5 pb-5 bg-gradient-to-r from-white via-white to-primary-light/15">
           <Button variant="outline" onClick={onClose} disabled={saving}>
             Cancel

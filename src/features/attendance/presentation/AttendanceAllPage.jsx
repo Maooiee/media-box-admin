@@ -8,6 +8,9 @@ import { exportAttendancePDF } from '../../../core/utils/pdfExport';
 import AttendanceRecordDrawer from './widgets/AttendanceRecordDrawer';
 import QuickNoteModal from './widgets/QuickNoteModal';
 
+// 👈 Import the new custom DatePicker
+import DatePicker from '../../../shared/components/DatePicker';
+
 const RANGES = [
   { key: 'today', label: 'Today' },
   { key: 'week',  label: 'This Week' },
@@ -283,15 +286,24 @@ export default function AttendanceAllPage() {
             </div>
           </div>
 
+          {/* 👈 Replaced DatePill with custom DatePicker */}
           <div className="flex items-center gap-2 md:ml-auto">
-            <Calendar size={13} className="text-primary shrink-0" />
-            <DatePill value={customFrom} onChange={setCustomFrom} placeholder="From" />
+            <Calendar size={13} className="text-primary shrink-0 hidden md:block" />
+            <DatePicker 
+              value={customFrom} 
+              onChange={setCustomFrom} 
+              placeholder="From" 
+            />
             <span className="text-[10px] md:text-xs text-textLight">to</span>
-            <DatePill value={customTo} onChange={setCustomTo} placeholder="To" />
+            <DatePicker 
+              value={customTo} 
+              onChange={setCustomTo} 
+              placeholder="To" 
+            />
             {(customFrom || customTo) && (
               <button
                 onClick={clearCustomRange}
-                className="text-[10px] font-bold text-primary hover:underline shrink-0"
+                className="text-[10px] font-bold text-primary hover:underline shrink-0 ml-1"
               >
                 CLEAR
               </button>
@@ -418,7 +430,6 @@ export default function AttendanceAllPage() {
                     onClick={() => setSelectedRecord(r)}
                     className="w-full text-left p-3 space-y-2.5"
                   >
-                    {/* Row 1: avatar + name + status */}
                     <div className="flex items-center gap-2.5">
                       <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-light to-primary/30 flex items-center justify-center text-primary text-xs font-bold shrink-0">
                         {r.employeeName?.[0]?.toUpperCase() ?? '?'}
@@ -442,7 +453,6 @@ export default function AttendanceAllPage() {
                       </span>
                     </div>
 
-                    {/* Row 2: times + hours + selfie thumb */}
                     <div className="flex items-center gap-2">
                       <div className="flex-1 grid grid-cols-3 gap-1.5 text-[10px]">
                         <div className="rounded-lg bg-bg px-2 py-1.5">
@@ -477,7 +487,6 @@ export default function AttendanceAllPage() {
                     </div>
                   </button>
 
-                  {/* Note button row */}
                   <div className="px-3 pb-3 flex items-center justify-between">
                     <button
                       onClick={() => setNoteRecord(r)}
@@ -587,37 +596,7 @@ function EmptyState({ hasFilters }) {
 }
 
 // ─────────────────────────────────────────────────────────
-// Date pill
-// ─────────────────────────────────────────────────────────
-function DatePill({ value, onChange, placeholder }) {
-  const formatted = value
-    ? new Date(value + 'T00:00:00').toLocaleDateString('en-PH', {
-        month: 'short',
-        day: 'numeric',
-      })
-    : placeholder;
-
-  return (
-    <label
-      className={`relative inline-flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 rounded-full border text-[11px] md:text-xs font-semibold cursor-pointer transition ${
-        value
-          ? 'bg-gradient-to-br from-primary-light to-primary-light/60 border-primary/30 text-primary'
-          : 'bg-white border-border text-textMedium hover:border-primary/40 hover:bg-primary-light/15'
-      }`}
-    >
-      <span>{formatted}</span>
-      <input
-        type="date"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="absolute inset-0 opacity-0 cursor-pointer"
-      />
-    </label>
-  );
-}
-
-// ─────────────────────────────────────────────────────────
-// Employee picker (unchanged, just responsive)
+// Employee picker
 // ─────────────────────────────────────────────────────────
 function EmployeePicker({ employees, value, onChange }) {
   const [open, setOpen] = useState(false);

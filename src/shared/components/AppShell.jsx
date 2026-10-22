@@ -2,11 +2,15 @@
 import { Outlet, useLocation } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import Sidebar from './Sidebar';
+import { useScrollReveal } from '../../core/hooks/useScrollReveal'; // 👈 1. IMPORT HOOK
 
 export default function AppShell() {
   const location = useLocation();
   const [key, setKey] = useState(location.pathname);
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // 👈 2. INITIALIZE HOOK HERE
+  useScrollReveal(); 
 
   useEffect(() => {
     setKey(location.pathname);
@@ -30,7 +34,7 @@ export default function AppShell() {
   }, [drawerOpen]);
 
   return (
-    <div className="min-h-screen bg-bg flex">
+    <div className="flex min-h-screen w-full bg-bg">
       {/* ─── Desktop sidebar ─── */}
       <Sidebar variant="desktop" />
 
@@ -57,26 +61,30 @@ export default function AppShell() {
         </>
       )}
 
-      <main className="flex-1 min-w-0 overflow-x-hidden flex flex-col">
+      <main className="flex-1 min-w-0 flex flex-col relative">
         {/* ─── Mobile top bar ─── */}
-        <div className="md:hidden sticky top-0 z-30 bg-bg/90 backdrop-blur border-b border-border px-3 py-3 flex items-center gap-3">
+        <div className="md:hidden sticky top-0 z-30 bg-gradient-to-br from-primary-light/60 via-white to-white border-b border-primary/15 backdrop-blur-md px-3 py-3 flex items-center gap-3">
           <button
             onClick={() => setDrawerOpen(true)}
-            className="w-10 h-10 rounded-xl border border-border bg-white flex items-center justify-center text-textDark shrink-0 hover:bg-primary-light/20 hover:border-primary/30 transition"
+            className="w-10 h-10 rounded-xl border border-border bg-white flex items-center justify-center text-textDark shrink-0 hover:bg-primary-light/20 hover:border-primary/30 transition shadow-sm"
             aria-label="Open menu"
           >
             <Menu size={18} />
           </button>
 
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center text-white font-bold text-xs shrink-0 shadow-sm shadow-primary/30">
-              MB
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            <div className="relative shrink-0">
+              <div className="absolute inset-0 bg-primary rounded-xl blur-sm opacity-30" />
+              <div className="relative w-9 h-9 rounded-xl bg-white flex items-center justify-center shadow-md shadow-primary/30 ring-1 ring-black/5 overflow-hidden p-1.5">
+                {/* 👈 Updated to MB.png */}
+                <img src="/MB.png" alt="Logo" className="w-full h-full object-contain" />
+              </div>
             </div>
             <div className="min-w-0">
-              <p className="text-[13px] font-bold text-textDark leading-tight truncate">
+              <p className="text-[13px] font-bold text-textDark leading-tight truncate tracking-tight">
                 Media Box
               </p>
-              <p className="text-[9px] font-semibold tracking-[0.14em] text-textLight uppercase">
+              <p className="text-[9px] font-bold tracking-[0.14em] text-primary/80 uppercase">
                 Admin
               </p>
             </div>
@@ -84,8 +92,9 @@ export default function AppShell() {
         </div>
 
         {/* ─── Content ─── */}
-        <div className="flex-1 max-w-7xl mx-auto w-full p-3 md:p-6">
-          <div key={key} className="animate-page-enter">
+        <div className="flex-1 w-full p-3 md:p-6 pb-12">
+          {/* 👈 3. key={key} triggers the hook to re-run on every page change */}
+          <div key={key} className="max-w-7xl mx-auto">
             <Outlet />
           </div>
         </div>

@@ -58,6 +58,20 @@ function hoursBetween(a, b) {
   return `${h}h ${m}m`;
 }
 
+/** Sum up all hours worked across records into "Xh Ym" */
+function totalHours(records) {
+  let totalMs = 0;
+  for (const r of records) {
+    if (!r.timeIn || !r.timeOut) continue;
+    const ms = new Date(r.timeOut) - new Date(r.timeIn);
+    if (ms > 0) totalMs += ms;
+  }
+  if (totalMs <= 0) return '0h 0m';
+  const h = Math.floor(totalMs / 3600000);
+  const m = Math.floor((totalMs % 3600000) / 60000);
+  return `${h}h ${m}m`;
+}
+
 function initialsOf(name) {
   if (!name) return '?';
   return name
@@ -70,25 +84,38 @@ function initialsOf(name) {
 }
 
 /**
- * Split a string into lines that fit within maxWidth at the current font.
+ * Strip a leading "[date, time] " prefix from a note if present.
+ * Handles formats like:
+ *   "[10/13/2026, 15:14] Actual note text"
+ *   "[2026-10-13 15:14] Actual note"
+ *   "10/13/2026, 15:14: Actual note"
  */
-function wrapText(doc, text, maxWidth) {
-  if (!text) return [''];
-  const words = String(text).split(/\s+/);
-  const lines = [];
-  let line = '';
+function cleanNote(raw) {
+  if (!raw) return '';
+  let text = String(raw).trim();
 
-  for (const word of words) {
-    const test = line ? `${line} ${word}` : word;
-    if (doc.getTextWidth(test) <= maxWidth) {
-      line = test;
-    } else {
-      if (line) lines.push(line);
-      line = word;
+  // Remove leading "[...]" if the bracket content looks like a date/time
+  const bracketMatch = text.match(/^\[(.+?)\]\s*/);
+  if (bracketMatch) {
+    const inner = bracketMatch[1];
+    if (/\d/.test(inner) && /[\/\-:]/.test(inner)) {
+      text = text.slice(bracketMatch[0].length);
     }
   }
-  if (line) lines.push(line);
-  return lines;
+
+  // Remove leading "MM/DD/YYYY, HH:MM:" or "MM/DD/YYYY HH:MM -" without brackets
+  text = text.replace(
+    /^\d{1,2}\/\d{1,2}\/\d{2,4}[,\s]+\d{1,2}:\d{2}(:\d{2})?\s*[-–:]?\s*/,
+    ''
+  );
+
+  // Remove leading "YYYY-MM-DD HH:MM" too
+  text = text.replace(
+    /^\d{4}-\d{2}-\d{2}[T\s]+\d{1,2}:\d{2}(:\d{2})?\s*[-–:]?\s*/,
+    ''
+  );
+
+  return text.trim();
 }
 
 // ─── Load image as centered square-cropped PNG data URL ───
@@ -140,19 +167,16 @@ async function loadImage(url) {
 }
 
 // ─── Header (full-width banner) ───
-function drawHeader(doc, { orgName, dateRange, recordCount }) {
+function drawHeader(doc, { orgName, dateRange }) {
   const { marginX, width } = PAGE;
   const bannerH = 88;
 
-  // Banner
   doc.setFillColor(...COLORS.primary);
   doc.rect(0, 0, width, bannerH, 'F');
 
-  // Darker strip at the bottom of the banner
   doc.setFillColor(...COLORS.primaryDark);
   doc.rect(0, bannerH - 2, width, 2, 'F');
 
-  // Logo mark
   const logoSize = 42;
   const logoX = marginX;
   const logoY = (bannerH - logoSize) / 2;
@@ -166,7 +190,6 @@ function drawHeader(doc, { orgName, dateRange, recordCount }) {
     align: 'center',
   });
 
-  // Org name + subtitle
   doc.setTextColor(...COLORS.white);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(20);
@@ -176,7 +199,6 @@ function drawHeader(doc, { orgName, dateRange, recordCount }) {
   doc.setFontSize(9.5);
   doc.text('Attendance Report', logoX + logoSize + 16, 58);
 
-  // Right-aligned meta
   const rightX = width - marginX;
 
   doc.setFont('helvetica', 'bold');
@@ -207,23 +229,19 @@ function drawStatCards(doc, y, cards) {
   cards.forEach((c, i) => {
     const x = marginX + i * (cardW + gap);
 
-    // Card
     doc.setFillColor(...COLORS.white);
     doc.setDrawColor(...COLORS.line);
     doc.setLineWidth(0.7);
     doc.roundedRect(x, y, cardW, cardH, 10, 10, 'FD');
 
-    // Accent bar
     doc.setFillColor(...(c.accent || COLORS.primary));
     doc.roundedRect(x + 6, y + 10, 3, cardH - 20, 1.5, 1.5, 'F');
 
-    // Label
     doc.setTextColor(...COLORS.soft);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(6.5);
     doc.text(String(c.label).toUpperCase(), x + 14, y + 20);
 
-    // Value
     doc.setTextColor(...(c.color || COLORS.ink));
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(20);
@@ -252,8 +270,9 @@ export async function exportAttendancePDF(
   const present = records.filter((r) => r.status === 'present').length;
   const late = records.filter((r) => r.status === 'late').length;
   const absent = records.filter((r) => r.status === 'absent').length;
+  const grandTotal = totalHours(records);
 
-  drawHeader(doc, { orgName, dateRange, recordCount: records.length });
+  drawHeader(doc, { orgName, dateRange });
 
   let y = 116;
   y = drawStatCards(doc, y, [
@@ -265,7 +284,6 @@ export async function exportAttendancePDF(
 
   y += 22;
 
-  // Section title
   doc.setTextColor(...COLORS.ink);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
@@ -283,23 +301,39 @@ export async function exportAttendancePDF(
 
   y += 12;
 
-  // ─── Build body rows ───
-  // Columns: [avatar, employee, id, date, in, out, hours, status, notes]
-  const body = records.map((r) => [
-    '',                                // avatar (drawn in didDrawCell)
-    r.employeeName || '—',
-    r.employeeId || '—',
-    r.date || '—',
-    formatTime(r.timeIn),
-    formatTime(r.timeOut),
-    hoursWorked(r),
-    (r.status || '').toUpperCase(),
-    r.notes || r.admin_note || '—',    // Notes column
+  // ─── Build body rows (no STATUS column, no timestamp in notes) ───
+  // Columns: [avatar, employee, id, date, in, out, hours, notes]
+  const body = records.map((r) => {
+    const noteText = cleanNote(r.notes);
+    return [
+      '',                                 // avatar (drawn in didDrawCell)
+      r.employeeName || '—',
+      r.employeeId || '—',
+      r.date || '—',
+      formatTime(r.timeIn),
+      formatTime(r.timeOut),
+      hoursWorked(r),
+      noteText || '—',
+    ];
+  });
+
+  // Total row appended at the bottom
+  body.push([
+    '',
+    'TOTAL',
+    '',
+    '',
+    '',
+    '',
+    grandTotal,
+    '',
   ]);
+
+  const totalRowIndex = body.length - 1;
 
   autoTable(doc, {
     startY: y,
-    head: [['', 'EMPLOYEE', 'ID', 'DATE', 'IN', 'OUT', 'HOURS', 'STATUS', 'NOTES']],
+    head: [['', 'EMPLOYEE', 'ID', 'DATE', 'IN', 'OUT', 'HRS', 'NOTES']],
     body,
     theme: 'plain',
     styles: {
@@ -323,34 +357,44 @@ export async function exportAttendancePDF(
     alternateRowStyles: { fillColor: COLORS.band },
     columnStyles: {
       0: { cellWidth: 42, minCellHeight: 44 },
-      1: { cellWidth: 78, fontStyle: 'bold', textColor: COLORS.ink, fontSize: 8 },
-      2: { cellWidth: 44, fontSize: 7.5, textColor: COLORS.soft },
-      3: { cellWidth: 54, fontSize: 7.5, textColor: COLORS.soft },
-      4: { cellWidth: 42, fontSize: 7.5 },
-      5: { cellWidth: 42, fontSize: 7.5 },
-      6: { cellWidth: 40, fontSize: 7.5, fontStyle: 'bold', textColor: COLORS.ink },
-      7: { cellWidth: 52, halign: 'center' },
-      8: { cellWidth: 'auto', fontSize: 7.5, textColor: COLORS.body, fontStyle: 'normal' },
+      1: { cellWidth: 90, fontStyle: 'bold', textColor: COLORS.ink, fontSize: 8 },
+      2: { cellWidth: 48, fontSize: 7.5, textColor: COLORS.soft },
+      3: { cellWidth: 58, fontSize: 7.5, textColor: COLORS.soft },
+      4: { cellWidth: 46, fontSize: 7.5 },
+      5: { cellWidth: 46, fontSize: 7.5 },
+      6: { cellWidth: 44, fontSize: 7.5, fontStyle: 'bold', textColor: COLORS.ink },
+      7: { cellWidth: 'auto', fontSize: 7.5, textColor: COLORS.body, fontStyle: 'normal' },
     },
     didParseCell: (data) => {
-      // Gray out em-dash notes
-      if (data.section === 'body' && data.column.index === 8) {
+      // ─── Style the TOTAL row ───
+      if (data.section === 'body' && data.row.index === totalRowIndex) {
+        data.cell.styles.fillColor = COLORS.primarySoft;
+        data.cell.styles.fontStyle = 'bold';
+        data.cell.styles.fontSize = 9;
+        data.cell.styles.textColor = COLORS.primaryDark;
+        data.cell.styles.lineWidth = { top: 1.2, right: 0, bottom: 0, left: 0 };
+        data.cell.styles.lineColor = COLORS.primary;
+      }
+
+      // Gray em-dash notes (but not on the TOTAL row)
+      if (
+        data.section === 'body' &&
+        data.column.index === 7 &&
+        data.row.index !== totalRowIndex
+      ) {
         if (data.cell.raw === '—') {
           data.cell.styles.textColor = COLORS.faint;
           data.cell.styles.halign = 'center';
         }
       }
-      // Make absent/late employee names slightly muted
-      if (data.section === 'body' && data.column.index === 1) {
-        const status = String(body[data.row.index][7]).toLowerCase();
-        if (status === 'absent') {
-          data.cell.styles.textColor = COLORS.soft;
-        }
-      }
     },
     didDrawCell: (data) => {
       // ─── Avatar / photo cell ───
-      if (data.section === 'body' && data.column.index === 0) {
+      if (
+        data.section === 'body' &&
+        data.column.index === 0 &&
+        data.row.index !== totalRowIndex
+      ) {
         const img = photos[data.row.index];
         const size = 30;
         const cx = data.cell.x + (data.cell.width - size) / 2;
@@ -385,55 +429,9 @@ export async function exportAttendancePDF(
 
         doc.restoreGraphicsState();
 
-        // Border on top
         doc.setDrawColor(...COLORS.line);
         doc.setLineWidth(0.5);
         doc.roundedRect(cx, cy, size, size, radius, radius, 'S');
-      }
-
-      // ─── Status pill ───
-      if (
-        data.section === 'body' &&
-        data.column.index === 7 &&
-        data.cell.raw
-      ) {
-        const status = String(data.cell.raw).toLowerCase();
-        let bg = COLORS.slateSoft;
-        let fg = COLORS.slate;
-        if (status === 'present') {
-          bg = COLORS.greenSoft;
-          fg = COLORS.green;
-        } else if (status === 'late') {
-          bg = COLORS.amberSoft;
-          fg = COLORS.amber;
-        } else if (status === 'absent') {
-          bg = COLORS.redSoft;
-          fg = COLORS.red;
-        } else if (status === 'on_leave' || status === 'on leave') {
-          bg = COLORS.blueSoft;
-          fg = COLORS.blue;
-        }
-
-        const label = String(data.cell.raw).toUpperCase();
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(6.5);
-        const textW = doc.getTextWidth(label);
-        const padX = 8;
-        const pillW = Math.min(textW + padX * 2, data.cell.width - 8);
-        const pillH = 15;
-        const px = data.cell.x + (data.cell.width - pillW) / 2;
-        const py = data.cell.y + (data.cell.height - pillH) / 2;
-
-        doc.setFillColor(...bg);
-        doc.roundedRect(px, py, pillW, pillH, pillH / 2, pillH / 2, 'F');
-
-        doc.setTextColor(...fg);
-        doc.text(label, px + pillW / 2, py + pillH / 2 + 2, {
-          align: 'center',
-          maxWidth: pillW - 4,
-        });
-
-        data.cell.text = [];
       }
     },
     margin: {
@@ -448,7 +446,6 @@ export async function exportAttendancePDF(
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
 
-    // Thin rule
     doc.setDrawColor(...COLORS.line);
     doc.setLineWidth(0.5);
     doc.line(
@@ -458,7 +455,6 @@ export async function exportAttendancePDF(
       PAGE.height - PAGE.marginBottom + 12
     );
 
-    // Left label with brand dot
     const footerY = PAGE.height - PAGE.marginBottom + 28;
     doc.setFillColor(...COLORS.primary);
     doc.circle(PAGE.marginX + 3, footerY - 3, 2.5, 'F');
@@ -477,7 +473,6 @@ export async function exportAttendancePDF(
       footerY
     );
 
-    // Right label
     doc.setTextColor(...COLORS.soft);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.5);
@@ -490,7 +485,6 @@ export async function exportAttendancePDF(
   doc.save(`mediabox-attendance-${stamp}.pdf`);
 }
 
-// Kept for compatibility
 export async function exportSelfieReviewPDF(records, opts = {}) {
   return exportAttendancePDF(records, {
     orgName: opts.orgName || 'Media Box',

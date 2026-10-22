@@ -33,7 +33,7 @@ const DragCell = memo(function DragCell({
   cell,
   dayShifts,
   isToday,
-  isPast,
+  isPast, // <-- We receive isPast
   isWeekend,
   isOpen,
   inDragRange,
@@ -50,16 +50,15 @@ const DragCell = memo(function DragCell({
   onAssignToEmployee,
   onOpenEditor,
 }) {
-  // GUARD: prevent crash if cell or date is missing
   if (!cell || !cell.date) return null;
 
   const handleTouchStart = () => {
-    if (cell.muted) return;
+    if (cell.muted || isPast) return; // <-- Block touch drag on past
     onBeginDrag(cell.date, cell.muted);
   };
 
   const handleTouchMove = (e) => {
-    if (cell.muted) return;
+    if (cell.muted || isPast) return;
     const touch = e.touches[0];
     if (!touch) return;
     const el = document.elementFromPoint(touch.clientX, touch.clientY);
@@ -76,13 +75,16 @@ const DragCell = memo(function DragCell({
     onEndDrag?.();
   };
 
+  const handleMouseDown = (e) => {
+    if (e.button !== 0) return;
+    if (cell.muted || isPast) return; // <-- Block mouse drag on past
+    onBeginDrag(cell.date, cell.muted);
+  };
+
   return (
     <div
       data-date={`${cell.date.getFullYear()}-${String(cell.date.getMonth() + 1).padStart(2, '0')}-${String(cell.date.getDate()).padStart(2, '0')}`}
-      onMouseDown={(e) => {
-        if (e.button !== 0) return;
-        onBeginDrag(cell.date, cell.muted);
-      }}
+      onMouseDown={handleMouseDown}
       onMouseEnter={() => onExtendDrag(cell.date, cell.muted)}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
@@ -211,6 +213,10 @@ export default function CalendarGrid({
   function handleBeginDrag(date, muted) {
     if (muted) return;
     if (!date || isNaN(date.getTime())) return;
+
+    // Do not allow dragging or editing if the date is in the past
+    if (date.getTime() < today.getTime()) return;
+
     dragStartRef.current = date;
     dragEndRef.current = date;
     draggedRef.current = false;
@@ -222,6 +228,7 @@ export default function CalendarGrid({
   function handleExtendDrag(date, muted) {
     if (!dragging || muted) return;
     if (!date || isNaN(date.getTime())) return;
+    if (date.getTime() < today.getTime()) return; // Don't extend into the past
     const cur = dragEndRef.current;
     if (cur && sameDay(cur, date)) return;
     dragEndRef.current = date;
@@ -289,7 +296,7 @@ export default function CalendarGrid({
 
   return (
     <div
-      className="bg-white rounded-2xl border border-border shadow-sm select-none overflow-hidden"
+      className="bg-white rounded-2xl border border-border shadow-sm select-none"
       onMouseLeave={() => {
         if (dragging && dragStartRef.current && dragEndRef.current && draggedRef.current) {
           setPending({ start: dragStartRef.current, end: dragEndRef.current });
@@ -297,17 +304,14 @@ export default function CalendarGrid({
         }
       }}
     >
-      {/* ─── Weekday header ─── */}
-      <div className="grid grid-cols-7 bg-bg border-b border-border">
+      <div className="grid grid-cols-7 bg-bg border-b border-border rounded-t-2xl">
         {WEEKDAY_LABELS.map((d, i) => {
           const isWeekend = i === 0 || i === 6;
           return (
             <div
               key={d}
               className={`py-2 md:py-3 text-center text-[9px] md:text-[10px] font-bold tracking-wider ${
-                isWeekend
-                  ? 'text-primary bg-orange-50/70 md:bg-primary-light/20'
-                  : 'text-textLight'
+                isWeekend ? 'text-primary/70 bg-primary-light/20' : 'text-textLight'
               }`}
             >
               {d}
@@ -316,57 +320,48 @@ export default function CalendarGrid({
         })}
       </div>
 
-      {/* ─── Day cells grouped into weeks ─── */}
-      <div className="divide-y divide-border">
-        {Array.from({ length: Math.ceil(cells.length / 7) }).map((_, weekIdx) => {
-          const week = cells.slice(weekIdx * 7, weekIdx * 7 + 7);
+      <div className="grid grid-cols-7">
+        {cells.map((cell, i) => {
+          const key = dateKey(cell.date);
+          const dayShifts = shiftsByDate.get(key) ?? [];
+          const isToday = cell.date.getTime() === today.getTime();
+          const isPast = cell.date.getTime() < today.getTime();
+
+          const inDragRange =
+            dragging &&
+            dragStartRef.current &&
+            dragEndRef.current &&
+            dayBetween(cell.date, dragStartRef.current, dragEndRef.current);
+
+          const isDragStart = dragging && sameDay(cell.date, dragStartRef.current);
+          const isDragEnd = dragging && sameDay(cell.date, dragEndRef.current);
+
           return (
-            <div key={weekIdx} className="grid grid-cols-7">
-              {week.map((cell, i) => {
-                const globalIdx = weekIdx * 7 + i;
-                const key = dateKey(cell.date);
-                const dayShifts = shiftsByDate.get(key) ?? [];
-                const isToday = cell.date.getTime() === today.getTime();
-                const isPast = cell.date.getTime() < today.getTime();
-
-                const inDragRange =
-                  dragging &&
-                  dragStartRef.current &&
-                  dragEndRef.current &&
-                  dayBetween(cell.date, dragStartRef.current, dragEndRef.current);
-
-                const isDragStart = dragging && sameDay(cell.date, dragStartRef.current);
-                const isDragEnd = dragging && sameDay(cell.date, dragEndRef.current);
-
-                return (
-                  <DragCell
-                    key={key}
-                    cell={cell}
-                    dayShifts={dayShifts}
-                    isToday={isToday}
-                    isPast={isPast}
-                    isWeekend={cell.date.getDay() === 0 || cell.date.getDay() === 6}
-                    isOpen={openDateKey === key}
-                    inDragRange={!!inDragRange}
-                    isDragStart={isDragStart}
-                    isDragEnd={isDragEnd}
-                    dragging={dragging}
-                    zIndex={30 + globalIdx}
-                    onOpen={() => {
-                      if (dragging || pending) return;
-                      setOpenDateKey(key);
-                    }}
-                    onClose={() => setOpenDateKey(null)}
-                    onBeginDrag={handleBeginDrag}
-                    onExtendDrag={handleExtendDrag}
-                    onEndDrag={handleEndDrag}
-                    employees={employees}
-                    onAssignToEmployee={onAssignToEmployee}
-                    onOpenEditor={onOpenEditor}
-                  />
-                );
-              })}
-            </div>
+            <DragCell
+              key={key}
+              cell={cell}
+              dayShifts={dayShifts}
+              isToday={isToday}
+              isPast={isPast}
+              isWeekend={cell.date.getDay() === 0 || cell.date.getDay() === 6}
+              isOpen={openDateKey === key}
+              inDragRange={!!inDragRange}
+              isDragStart={isDragStart}
+              isDragEnd={isDragEnd}
+              dragging={dragging}
+              zIndex={30 + i}
+              onOpen={() => {
+                if (dragging || pending || isPast) return; // <-- Block past
+                setOpenDateKey(key);
+              }}
+              onClose={() => setOpenDateKey(null)}
+              onBeginDrag={handleBeginDrag}
+              onExtendDrag={handleExtendDrag}
+              onEndDrag={handleEndDrag}
+              employees={employees}
+              onAssignToEmployee={onAssignToEmployee}
+              onOpenEditor={onOpenEditor}
+            />
           );
         })}
       </div>
@@ -390,7 +385,7 @@ export default function CalendarGrid({
 }
 
 // ─────────────────────────────────────────────────────────────
-// Bulk range popup — unchanged
+// Bulk range popup
 // ─────────────────────────────────────────────────────────────
 function BulkRangePopup({ start, end, employees, onClose, onConfirm }) {
   const [kindKey, setKindKey] = useState(SHIFT_KINDS[0]?.key ?? 'opening');
