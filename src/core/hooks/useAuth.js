@@ -21,6 +21,16 @@ export function useAuth() {
   return {
     session,
     loading,
-    signOut: () => supabase.auth.signOut(),
+    signOut: async () => {
+      try {
+        await supabase.auth.signOut();
+      } catch (error) {
+        // Ignore 403 errors (session is already invalid/expired on the server)
+        // This happens if the user was deleted or the DB was cleared
+        if (error?.status !== 403) {
+          console.error('Sign out error:', error);
+        }
+      }
+    },
   };
 }
