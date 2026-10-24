@@ -71,6 +71,7 @@ serve(async (req) => {
       position,
       schedule,
       is_admin,
+      daily_rate,
     } = await req.json();
 
     if (!email || !password || !full_name || !employee_id) {
@@ -109,20 +110,31 @@ serve(async (req) => {
 
     // 2. UPSERT the profile — updates the row the trigger created,
     //    or inserts one if the trigger didn't (safety net)
-    const { error: profileErr } = await adminClient.from('profiles').upsert(
-      {
-        id: authData.user.id,
-        full_name,
-        employee_id,
-        email,
-        position: position || 'Employee',
-        schedule: schedule || null,
-        is_admin: !!is_admin,
-        is_active: true,
-        joined_date: new Date().toISOString().slice(0, 10),
-      },
-      { onConflict: 'id' }
-    );
+    const profileRow = {
+      id: authData.user.id,
+      full_name,
+      employee_id,
+      email,
+      position: position || 'Employee',
+      schedule: schedule || null,
+      is_admin: !!is_admin,
+      is_active: true,
+      joined_date: new Date().toISOString().slice(0, 10),
+      daily_rate: daily_rate != null && daily_rate !== '' ? daily_rate : null,
+    };
+
+    let { error: profileErr } = await adminClient
+      .from('profiles')
+      .upsert(profileRow, { onConflict: 'id' });
+
+    // daily_rate requires the payroll migration — retry without it so
+    // employee creation still works if that migration hasn't run yet.
+    if (profileErr && /daily_rate/.test(profileErr.message ?? '')) {
+      const { daily_rate: _skip, ...withoutRate } = profileRow;
+      ({ error: profileErr } = await adminClient
+        .from('profiles')
+        .upsert(withoutRate, { onConflict: 'id' }));
+    }
 
     if (profileErr) {
       // Cleanup: delete the auth user we just created

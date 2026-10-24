@@ -7,13 +7,24 @@ const EDGE_FUNCTION_URL = `${FUNCTIONS_BASE_URL}/create-employee`;
 
 export const employeesRepository = {
   async fetchAll() {
-    const { data, error } = await supabase
+    const columns =
+      'id, full_name, employee_id, email, position, schedule, is_admin, is_active, joined_date, avatar_url';
+
+    // daily_rate needs the payroll migration (supabase/migrations/20261024…).
+    // Fall back to a plain query so the Employees page still works before it runs.
+    let result = await supabase
       .from('profiles')
-      .select(
-        'id, full_name, employee_id, email, position, schedule, is_admin, is_active, joined_date, avatar_url'
-      )
+      .select(`${columns}, daily_rate`)
       .order('full_name', { ascending: true });
 
+    if (result.error && /daily_rate/.test(result.error.message)) {
+      result = await supabase
+        .from('profiles')
+        .select(columns)
+        .order('full_name', { ascending: true });
+    }
+
+    const { data, error } = result;
     if (error) throw error;
     return data ?? [];
   },
@@ -27,6 +38,7 @@ export const employeesRepository = {
     position,
     schedule,
     isAdmin,
+    dailyRate,
   }) {
     const {
       data: { session },
@@ -47,6 +59,7 @@ export const employeesRepository = {
         position,
         schedule,
         is_admin: isAdmin,
+        daily_rate: dailyRate,
       }),
     });
 
@@ -86,6 +99,7 @@ export const employeesRepository = {
     if (updates.isAdmin !== undefined) payload.is_admin = updates.isAdmin;
     if (updates.isActive !== undefined) payload.is_active = updates.isActive;
     if (updates.email !== undefined) payload.email = updates.email;
+    if (updates.dailyRate !== undefined) payload.daily_rate = updates.dailyRate;
 
     const { data, error } = await supabase
       .from('profiles')

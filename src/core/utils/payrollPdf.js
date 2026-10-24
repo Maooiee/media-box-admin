@@ -6,7 +6,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-const COLORS = {
+export const COLORS = {
   primary: [242, 106, 27],
   primaryDark: [201, 82, 12],
   primarySoft: [255, 244, 236],
@@ -26,7 +26,7 @@ const COLORS = {
   blueSoft: [219, 234, 254],
 };
 
-const PAGE = {
+export const PAGE = {
   marginX: 40,
   marginBottom: 50,
   width: 595.28,
@@ -61,7 +61,7 @@ function hoursBetween(a, b) {
   return `${h}h ${m}m`;
 }
 
-function drawHeader(doc, { title, subtitle, cutoffLabel }) {
+export function drawHeader(doc, { title, subtitle, cutoffLabel }) {
   const { marginX, width } = PAGE;
   const bannerH = 96;
 
@@ -162,7 +162,7 @@ function drawTotalsStrip(doc, y, rows) {
   return y + cardH;
 }
 
-function drawFooter(doc, pageNum, totalPages) {
+export function drawFooter(doc, pageNum, totalPages, suffix = 'Payroll Summary') {
   const { marginX, width, height, marginBottom } = PAGE;
   doc.setDrawColor(...COLORS.line);
   doc.setLineWidth(0.5);
@@ -180,7 +180,7 @@ function drawFooter(doc, pageNum, totalPages) {
   doc.setTextColor(...COLORS.soft);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
-  doc.text('· Payroll Summary', marginX + 12 + doc.getTextWidth('Media Box') + 4, y);
+  doc.text(`· ${suffix}`, marginX + 12 + doc.getTextWidth('Media Box') + 4, y);
 
   doc.setTextColor(...COLORS.soft);
   doc.text(`Page ${pageNum} of ${totalPages}`, width - marginX, y, { align: 'right' });

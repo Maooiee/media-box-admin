@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, UserPlus, Copy, Check, Mail, BadgeCheck, Briefcase, Calendar } from 'lucide-react';
+import { X, UserPlus, Copy, Check, Mail, BadgeCheck, Briefcase, Calendar, Wallet } from 'lucide-react';
 import { employeesRepository } from '../../data/employeesRepository';
 
 export default function AddEmployeeModal({ open, onClose, onCreated }) {
@@ -8,6 +8,7 @@ export default function AddEmployeeModal({ open, onClose, onCreated }) {
   const [employeeId, setEmployeeId] = useState('');
   const [position, setPosition] = useState('');
   const [schedule, setSchedule] = useState('');
+  const [dailyRate, setDailyRate] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -32,6 +33,12 @@ export default function AddEmployeeModal({ open, onClose, onCreated }) {
       return;
     }
 
+    const rateValue = dailyRate.trim() === '' ? null : Number(dailyRate);
+    if (rateValue !== null && (Number.isNaN(rateValue) || rateValue < 0)) {
+      setError('Daily rate must be a valid amount');
+      return;
+    }
+
     setSaving(true);
     try {
       const password = generatePassword();
@@ -43,6 +50,7 @@ export default function AddEmployeeModal({ open, onClose, onCreated }) {
         position: position.trim() || 'Employee',
         schedule: schedule.trim(),
         isAdmin,
+        dailyRate: rateValue,
       });
 
       setSuccess({ email: email.trim(), password });
@@ -69,6 +77,7 @@ export default function AddEmployeeModal({ open, onClose, onCreated }) {
     setEmployeeId('');
     setPosition('');
     setSchedule('');
+    setDailyRate('');
     setIsAdmin(false);
     setError('');
     setSuccess(null);
@@ -203,6 +212,22 @@ export default function AddEmployeeModal({ open, onClose, onCreated }) {
                   value={schedule}
                   onChange={(e) => setSchedule(e.target.value)}
                   placeholder="Mon–Fri · 9AM–6PM"
+                  className="w-full bg-transparent outline-none text-sm text-textDark placeholder:text-textLight"
+                />
+              </ModernField>
+
+              <ModernField
+                label="Daily Rate"
+                icon={<Wallet size={14} />}
+                hint="₱ per working day — used for weekly payroll"
+              >
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={dailyRate}
+                  onChange={(e) => setDailyRate(e.target.value)}
+                  placeholder="0.00"
                   className="w-full bg-transparent outline-none text-sm text-textDark placeholder:text-textLight"
                 />
               </ModernField>
@@ -342,13 +367,18 @@ function SuccessPanel({ success, copied, onCopy, onDone }) {
 // ─────────────────────────────────────────────────────
 //  Modern field
 // ─────────────────────────────────────────────────────
-function ModernField({ label, icon, required, children }) {
+function ModernField({ label, icon, required, hint, children }) {
   return (
     <div className="group">
       <label className="flex items-center gap-1.5 text-[11px] font-bold tracking-wider text-textLight uppercase mb-2">
         {icon && <span className="text-textLight">{icon}</span>}
         {label}
         {required && <span className="text-primary">*</span>}
+        {hint && (
+          <span className="ml-auto normal-case tracking-normal font-medium text-[10px] text-textLight/90">
+            {hint}
+          </span>
+        )}
       </label>
       <div className="flex items-center px-4 py-3 rounded-2xl border border-border bg-bg focus-within:bg-white focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/60 transition-all">
         {children}

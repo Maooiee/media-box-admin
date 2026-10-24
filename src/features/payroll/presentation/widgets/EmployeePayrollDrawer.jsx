@@ -1,7 +1,9 @@
 // admin-panel/src/features/payroll/presentation/widgets/EmployeePayrollDrawer.jsx
 import { useEffect, useState } from 'react';
-import { X, Plus, Trash2, AlertTriangle } from 'lucide-react';
+import { X, Plus, Trash2, AlertTriangle, Download } from 'lucide-react';
 import { payrollRepository } from '../../data/payrollRepository';
+import { exportPayslipPDF } from '../../../../core/utils/payslipPdf';
+import { peso } from '../../domain/payrollRules';
 
 function fmtTime(iso) {
   if (!iso) return '--';
@@ -25,6 +27,7 @@ export default function EmployeePayrollDrawer({
   open,
   summary,
   cutoff,
+  pay = null,
   onClose,
   onAddAdjustment,
   onToast,
@@ -68,6 +71,21 @@ export default function EmployeePayrollDrawer({
       load();
     } catch (e) {
       onToast?.(e.message || 'Failed to delete', 'error');
+    }
+  }
+
+  function handlePayslip() {
+    try {
+      exportPayslipPDF({
+        summary,
+        pay,
+        periodLabel: cutoff.label,
+        periodStart: cutoff.start,
+        periodEnd: cutoff.end,
+      });
+      onToast?.('Payslip downloaded', 'success');
+    } catch (e) {
+      onToast?.(e.message || 'Failed to generate payslip', 'error');
     }
   }
 
@@ -133,6 +151,79 @@ export default function EmployeePayrollDrawer({
           <span className="text-xs text-textLight">
             {summary.overtime_minutes} OT min · {summary.undertime_minutes} UT min
           </span>
+        </div>
+
+        <div className="px-5 pb-4">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-bold text-textDark">Pay Breakdown</h3>
+            {pay?.hasRate && (
+              <button
+                onClick={handlePayslip}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-primary/30 text-primary text-xs font-bold hover:bg-primary-light/30 transition"
+              >
+                <Download size={13} /> Payslip PDF
+              </button>
+            )}
+          </div>
+
+          {!pay || !pay.hasRate ? (
+            <div className="flex items-start gap-2 bg-yellowLight border border-yellow/30 rounded-xl px-3 py-2.5">
+              <AlertTriangle size={14} className="text-yellow shrink-0 mt-0.5" />
+              <p className="text-xs text-textMedium">
+                No daily rate set for this employee. Add one in{' '}
+                <span className="font-bold text-textDark">Employees → Edit</span>{' '}
+                to compute pay.
+              </p>
+            </div>
+          ) : (
+            <div className="bg-white rounded-2xl border border-border overflow-hidden">
+              {/* Rate + totals */}
+              <div className="grid grid-cols-3 divide-x divide-border border-b border-border">
+                <RateCell label="Daily rate" value={peso(pay.rate)} />
+                <RateCell label="Hourly" value={peso(pay.hourly)} />
+                <RateCell label="Gross pay" value={peso(pay.gross)} accent />
+              </div>
+
+              {/* Earnings */}
+              <ul className="px-4 py-3 space-y-1.5">
+                {pay.lines.length === 0 && (
+                  <li className="text-xs text-textLight">No earnings this period.</li>
+                )}
+                {pay.lines.map((l) => (
+                  <li key={l.key} className="flex items-center justify-between gap-3 text-xs">
+                    <span className="text-textMedium">{l.label}</span>
+                    <span className="font-bold text-textDark shrink-0">
+                      {peso(l.amount)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+
+              {/* Deductions */}
+              {pay.deductions.length > 0 && (
+                <ul className="px-4 py-3 space-y-1.5 border-t border-border bg-red/5">
+                  {pay.deductions.map((d) => (
+                    <li key={d.key} className="flex items-center justify-between gap-3 text-xs">
+                      <span className="text-textMedium">{d.label}</span>
+                      <span className="font-bold text-red shrink-0">
+                        − {peso(d.amount)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {/* Gross strip */}
+              <div className="px-4 py-3 bg-gradient-to-r from-primary-light/50 to-transparent border-t border-border flex items-center justify-between">
+                <span className="text-[10px] font-bold tracking-wider text-textLight uppercase">
+                  Gross for {cutoff.label}
+                </span>
+                <span className="text-lg font-bold text-textDark">
+                  {peso(pay.gross)}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="px-5 pb-4">
@@ -247,6 +338,21 @@ export default function EmployeePayrollDrawer({
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function RateCell({ label, value, accent = false }) {
+  return (
+    <div className="px-4 py-2.5">
+      <p className="text-[9px] font-bold tracking-wider uppercase text-textLight opacity-80">
+        {label}
+      </p>
+      <p
+        className={`text-sm font-bold mt-0.5 ${accent ? 'text-primary' : 'text-textDark'}`}
+      >
+        {value}
+      </p>
     </div>
   );
 }

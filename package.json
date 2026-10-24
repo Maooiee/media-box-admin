@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "oxlint",
+    "test:payroll": "vite build --ssr scripts/calc.test.js --outDir dist-ssr-test --emptyOutDir && node dist-ssr-test/calc.test.js",
     "preview": "vite preview"
   },
   "dependencies": {
