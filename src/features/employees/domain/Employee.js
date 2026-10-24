@@ -10,5 +10,6 @@
     isActive: raw.is_active ?? true,
     joinedDate: raw.joined_date,
     avatarUrl: raw.avatar_url,
+    dailyRate: raw.daily_rate != null ? Number(raw.daily_rate) : null,
   };
 }

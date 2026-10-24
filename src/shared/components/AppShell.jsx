@@ -38,7 +38,7 @@ export default function AppShell() {
       {/* ─── Desktop sidebar ─── */}
       <Sidebar variant="desktop" />
 
-      {/* ─── Mobile drawer ─── */}
+      {/* ─── Mobile drawer — glass sheet ─── */}
       {drawerOpen && (
         <>
           <div
@@ -46,13 +46,13 @@ export default function AppShell() {
             onClick={() => setDrawerOpen(false)}
           />
           <div
-            className="fixed top-0 left-0 bottom-0 z-50 md:hidden animate-[slideInLeft_240ms_ease-out] shadow-2xl"
+            className="fixed top-0 left-0 bottom-0 z-50 md:hidden animate-[slideInLeft_240ms_ease-out]"
             style={{ width: 'min(18rem, 85vw)' }}
           >
             <Sidebar variant="drawer" />
             <button
               onClick={() => setDrawerOpen(false)}
-              className="absolute top-4 right-3 w-9 h-9 rounded-full bg-white border border-border shadow-md flex items-center justify-center text-textDark z-10 hover:bg-bg transition"
+              className="absolute top-5 right-3 w-9 h-9 rounded-full bg-white/80 backdrop-blur border border-border shadow-md flex items-center justify-center text-textDark z-10 hover:bg-white hover:text-primary transition"
               aria-label="Close menu"
             >
               <X size={16} />
@@ -62,11 +62,11 @@ export default function AppShell() {
       )}
 
       <main className="flex-1 min-w-0 flex flex-col relative">
-        {/* ─── Mobile top bar ─── */}
-        <div className="md:hidden sticky top-0 z-30 bg-gradient-to-br from-primary-light/60 via-white to-white border-b border-primary/15 backdrop-blur-md px-3 py-3 flex items-center gap-3">
+        {/* ─── Mobile top bar — glass ─── */}
+        <div className="md:hidden sticky top-0 z-30 bg-white/70 backdrop-blur-xl border-b border-white/60 px-3 py-2.5 flex items-center gap-3 shadow-[0_4px_20px_-8px_rgba(31,41,55,0.12)]">
           <button
             onClick={() => setDrawerOpen(true)}
-            className="w-10 h-10 rounded-xl border border-border bg-white flex items-center justify-center text-textDark shrink-0 hover:bg-primary-light/20 hover:border-primary/30 transition shadow-sm"
+            className="w-10 h-10 rounded-2xl bg-white/80 border border-border flex items-center justify-center text-textDark shrink-0 hover:bg-white hover:border-primary/40 hover:text-primary transition shadow-sm"
             aria-label="Open menu"
           >
             <Menu size={18} />
@@ -76,7 +76,6 @@ export default function AppShell() {
             <div className="relative shrink-0">
               <div className="absolute inset-0 bg-primary rounded-xl blur-sm opacity-30" />
               <div className="relative w-9 h-9 rounded-xl bg-white flex items-center justify-center shadow-md shadow-primary/30 ring-1 ring-black/5 overflow-hidden p-1.5">
-                {/* 👈 Updated to MB.png */}
                 <img src="/MB.png" alt="Logo" className="w-full h-full object-contain" />
               </div>
             </div>
@@ -89,6 +88,8 @@ export default function AppShell() {
               </p>
             </div>
           </div>
+
+          <span className="w-1.5 h-1.5 rounded-full bg-green shrink-0 shadow-sm shadow-green/50" />
         </div>
 
         {/* ─── Content ─── */}

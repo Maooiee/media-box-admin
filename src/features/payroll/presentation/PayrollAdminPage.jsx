@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Download,
   FileText,
   RefreshCw,
   Calendar,
+  CalendarDays,
   AlertTriangle,
   UserCheck,
   UserX,
@@ -13,15 +14,34 @@ import {
   TrendingDown,
   Plus,
   Wallet,
+  ChevronDown,
+  Check,
 } from 'lucide-react';
 import { supabase } from '../../../core/config/supabase';
-import { payrollRepository, recentCutoffs } from '../data/payrollRepository';
+import { payrollRepository, recentCutoffs, recentWeeklyCutoffs } from '../data/payrollRepository';
+import { holidaysRepository } from '../data/holidaysRepository';
+import { computeEmployeePay } from '../domain/payrollCalc';
+import { peso } from '../domain/payrollRules';
 import { exportPayrollPDF } from '../../../core/utils/payrollPdf';
 import AddAdjustmentModal from './widgets/AddAdjustmentModal';
 import EmployeePayrollDrawer from './widgets/EmployeePayrollDrawer';
+import HolidaysManagerModal from './widgets/HolidaysManagerModal';
+
+const PERIOD_STORAGE_KEY = 'payroll_period_mode';
 
 export default function PayrollAdminPage() {
-  const cutoffs = useMemo(() => recentCutoffs(12), []);
+  // 'weekly' (Mon–Sun, how the company pays) or 'semi-monthly' (legacy cutoffs)
+  const [periodMode, setPeriodMode] = useState(
+    () => localStorage.getItem(PERIOD_STORAGE_KEY) ?? 'weekly'
+  );
+
+  const cutoffs = useMemo(
+    () =>
+      periodMode === 'weekly'
+        ? recentWeeklyCutoffs(16)
+        : recentCutoffs(12),
+    [periodMode]
+  );
 
   const defaultIdx = useMemo(() => {
     const today = new Date();
@@ -31,15 +51,32 @@ export default function PayrollAdminPage() {
   }, [cutoffs]);
 
   const [cutoffIdx, setCutoffIdx] = useState(defaultIdx);
+  const [cutoffOpen, setCutoffOpen] = useState(false);
   const [rows, setRows] = useState([]);
+  const [payMap, setPayMap] = useState({});
+  const [setupMissing, setSetupMissing] = useState(false);
+  const [showHolidays, setShowHolidays] = useState(false);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [drawerRow, setDrawerRow] = useState(null);
   const [adjustRow, setAdjustRow] = useState(null);
   const [toast, setToast] = useState(null);
   const [adminId, setAdminId] = useState(null);
+  const cutoffRef = useRef(null);
 
   const cutoff = cutoffs[cutoffIdx];
+
+  // Close the cutoff dropdown when clicking anywhere outside it
+  useEffect(() => {
+    if (!cutoffOpen) return;
+    function onClick(e) {
+      if (cutoffRef.current && !cutoffRef.current.contains(e.target)) {
+        setCutoffOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, [cutoffOpen]);
 
   useEffect(() => {
     setCutoffIdx(defaultIdx);
@@ -54,16 +91,56 @@ export default function PayrollAdminPage() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cutoffIdx]);
+  }, [cutoffIdx, periodMode]);
+
+  function changePeriodMode(mode) {
+    setPeriodMode(mode);
+    localStorage.setItem(PERIOD_STORAGE_KEY, mode);
+    setCutoffIdx(defaultIdx);
+  }
 
   async function load() {
     setLoading(true);
     try {
-      const data = await payrollRepository.fetchPayrollForCutoff({
-        from: cutoff.start,
-        to: cutoff.end,
-      });
-      setRows(data);
+      const { rows: payrollRows, attendance, ratesAvailable } =
+        await payrollRepository.fetchPayrollRows({
+          from: cutoff.start,
+          to: cutoff.end,
+        });
+
+      // Holidays drive the premiums — but keep payroll usable even if the
+      // migration creating the table has not been run yet.
+      let holidays = [];
+      let holidaysAvailable = true;
+      try {
+        holidays = await holidaysRepository.fetchRange(cutoff.start, cutoff.end);
+      } catch {
+        holidaysAvailable = false;
+      }
+      setSetupMissing(!ratesAvailable || !holidaysAvailable);
+
+      const recordsByUser = new Map();
+      for (const a of attendance) {
+        if (!recordsByUser.has(a.user_id)) recordsByUser.set(a.user_id, []);
+        recordsByUser.get(a.user_id).push(a);
+      }
+      const holidaysByDate = holidaysRepository.toMap(holidays);
+
+      const map = {};
+      for (const r of payrollRows) {
+        map[r.user_id] = computeEmployeePay({
+          dailyRate: r.daily_rate,
+          records: recordsByUser.get(r.user_id) ?? [],
+          holidaysByDate,
+          otHours: r.overtime_hours,
+          utHours: r.undertime_hours,
+          periodStart: cutoff.start,
+          periodEnd: cutoff.end,
+        });
+      }
+
+      setPayMap(map);
+      setRows(payrollRows);
     } catch (e) {
       console.error(e);
       showToast('Failed to load payroll', 'error');
@@ -80,7 +157,7 @@ export default function PayrollAdminPage() {
   const totals = useMemo(() => {
     const t = {
       present: 0, late: 0, absent: 0, leave: 0,
-      hours: 0, ot: 0, ut: 0, missing: 0,
+      hours: 0, ot: 0, ut: 0, missing: 0, gross: 0,
     };
     for (const r of rows) {
       t.present += r.days_present;
@@ -91,9 +168,10 @@ export default function PayrollAdminPage() {
       t.ot += Number(r.overtime_hours) || 0;
       t.ut += Number(r.undertime_hours) || 0;
       t.missing += r.days_missing_timeout;
+      t.gross += payMap[r.user_id]?.gross ?? 0;
     }
     return t;
-  }, [rows]);
+  }, [rows, payMap]);
 
   async function handleExport(mode) {
     if (rows.length === 0) {
@@ -157,7 +235,7 @@ export default function PayrollAdminPage() {
               Payroll
             </h2>
             <p className="text-[11px] md:text-xs text-textLight mt-0.5 truncate">
-              Semi-monthly cutoff · printable reports
+              {periodMode === 'weekly' ? 'Weekly pay · Mon–Sun' : 'Semi-monthly cutoff'} · printable reports
             </p>
           </div>
         </div>
@@ -165,29 +243,87 @@ export default function PayrollAdminPage() {
         {/* Controls — stack under title on mobile, right on desktop */}
         <div className="mt-3 md:mt-4 flex flex-col md:flex-row md:items-center gap-2 md:gap-2">
           {/* Cutoff picker — full width on mobile */}
-          <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-xl border border-border shadow-sm md:min-w-[220px]">
+          <div ref={cutoffRef} className="relative flex items-center gap-2 bg-white px-3 py-2 rounded-xl border border-border shadow-sm md:min-w-[220px]">
             <Calendar size={14} className="text-primary shrink-0" />
-            <select
-              value={cutoffIdx}
-              onChange={(e) => setCutoffIdx(Number(e.target.value))}
-              className="flex-1 min-w-0 bg-transparent text-xs md:text-sm font-semibold text-textDark outline-none cursor-pointer"
+            <button
+              type="button"
+              onClick={() => setCutoffOpen((o) => !o)}
+              className="flex-1 min-w-0 flex items-center justify-between gap-2 text-left cursor-pointer"
             >
-              {cutoffs.map((c, i) => (
-                <option key={c.start} value={i}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
+              <span className="truncate text-xs md:text-sm font-semibold text-textDark">
+                {cutoffs[cutoffIdx]?.label}
+              </span>
+              <ChevronDown
+                size={14}
+                className={`text-textLight shrink-0 transition-transform ${cutoffOpen ? 'rotate-180' : ''}`}
+              />
+            </button>
+
+            {cutoffOpen && (
+              <div className="absolute z-30 top-full left-0 right-0 mt-2 bg-white border border-border rounded-2xl shadow-2xl overflow-hidden animate-[slideUp_180ms_ease-out]">
+                <div className="max-h-72 overflow-y-auto p-2 hide-scrollbar">
+                  {cutoffs.map((c, i) => {
+                    const selected = i === cutoffIdx;
+                    return (
+                      <button
+                        key={c.start}
+                        type="button"
+                        onClick={() => {
+                          setCutoffIdx(i);
+                          setCutoffOpen(false);
+                        }}
+                        className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl transition text-left ${
+                          selected ? 'bg-primary-light/60' : 'hover:bg-bg'
+                        }`}
+                      >
+                        <span className={`text-xs md:text-sm font-semibold ${selected ? 'text-primary' : 'text-textDark'}`}>
+                          {c.label}
+                        </span>
+                        {selected && <Check size={14} className="text-primary shrink-0" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Action buttons — 3-column grid on mobile */}
-          <div className="grid grid-cols-3 md:flex md:items-center gap-1.5 md:gap-2 md:ml-auto">
+          {/* Period length toggle */}
+          <div className="flex items-center gap-1 bg-white px-1 py-1 rounded-xl border border-border shadow-sm">
+            {[
+              { key: 'weekly', label: 'Weekly' },
+              { key: 'semi', label: 'Semi-monthly' },
+            ].map((m) => (
+              <button
+                key={m.key}
+                onClick={() => changePeriodMode(m.key)}
+                className={`px-3 py-1.5 rounded-lg text-[11px] md:text-xs font-bold transition whitespace-nowrap ${
+                  periodMode === m.key
+                    ? 'bg-gradient-to-br from-primary to-primary-dark text-white shadow-md shadow-primary/30'
+                    : 'text-textMedium hover:bg-bg'
+                }`}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Action buttons */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 md:flex md:items-center gap-1.5 md:gap-2 md:ml-auto">
             <button
               onClick={load}
               className="inline-flex items-center justify-center gap-1.5 px-2.5 md:px-4 py-2 rounded-xl text-[11px] md:text-sm font-semibold bg-white border border-border text-textMedium hover:border-primary hover:text-primary transition shadow-sm"
             >
               <RefreshCw size={13} />
               <span className="hidden sm:inline">Refresh</span>
+            </button>
+
+            <button
+              onClick={() => setShowHolidays(true)}
+              className="inline-flex items-center justify-center gap-1.5 px-2.5 md:px-4 py-2 rounded-xl text-[11px] md:text-sm font-semibold bg-white border border-border text-textMedium hover:border-primary hover:text-primary transition shadow-sm"
+            >
+              <CalendarDays size={13} />
+              <span>Holidays</span>
             </button>
 
             <button
@@ -212,8 +348,28 @@ export default function PayrollAdminPage() {
         </div>
       </div>
 
+      {/* ─── Setup warning — shown until the SQL migration has run ─── */}
+      {setupMissing && !loading && (
+        <div className="flex items-start gap-3 rounded-2xl border border-yellow/40 bg-yellowLight/70 px-4 py-3">
+          <AlertTriangle size={16} className="text-yellow shrink-0 mt-0.5" />
+          <div className="min-w-0">
+            <p className="text-xs font-bold text-yellow">
+              Payroll setup incomplete
+            </p>
+            <p className="text-[11px] text-textMedium mt-0.5">
+              Run{' '}
+              <span className="font-mono font-semibold text-textDark">
+                supabase/migrations/20261024120000_payroll_foundation.sql
+              </span>{' '}
+              in the Supabase SQL Editor to enable daily rates and holiday
+              premiums.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* ─── Stat tiles — gradient, matches Tasks/Selfie ─── */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 md:gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-2 md:gap-3">
         <StatTile label="Present" value={totals.present} icon={UserCheck} tone="good" />
         <StatTile label="Late" value={totals.late} icon={Clock} tone="warn" />
         <StatTile label="Absent" value={totals.absent} icon={UserX} tone="bad" />
@@ -225,6 +381,7 @@ export default function PayrollAdminPage() {
           icon={TrendingDown}
           tone="muted"
         />
+        <StatTile label="Gross Pay" value={peso(totals.gross)} icon={Wallet} tone="good" />
       </div>
 
       {/* ─── Content ─── */}
@@ -265,6 +422,8 @@ export default function PayrollAdminPage() {
                     <th className="text-right px-3 py-3.5">Hours</th>
                     <th className="text-right px-3 py-3.5">OT</th>
                     <th className="text-right px-3 py-3.5">UT</th>
+                    <th className="text-right px-3 py-3.5">Rate</th>
+                    <th className="text-right px-3 py-3.5">Gross</th>
                     <th className="text-right px-5 py-3.5">Actions</th>
                   </tr>
                 </thead>
@@ -324,6 +483,23 @@ export default function PayrollAdminPage() {
                       </td>
                       <td className="px-3 py-4 text-right font-semibold text-red">
                         {Number(r.undertime_hours).toFixed(2)}
+                      </td>
+                      <td className="px-3 py-4 text-right text-xs font-semibold">
+                        {payMap[r.user_id]?.hasRate ? (
+                          peso(r.daily_rate)
+                        ) : (
+                          <span
+                            title="Set a daily rate in Employees → Edit"
+                            className="text-yellow font-bold"
+                          >
+                            No rate
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-4 text-right font-bold text-textDark">
+                        {payMap[r.user_id]?.hasRate
+                          ? peso(payMap[r.user_id].gross)
+                          : '—'}
                       </td>
                       <td className="px-5 py-4 text-right">
                         <button
@@ -417,6 +593,20 @@ export default function PayrollAdminPage() {
                       )}
                     </div>
                   )}
+
+                  {/* Row 4: rate + gross pay */}
+                  <div className="flex items-center justify-between pt-2 border-t border-border/60">
+                    <span className="text-[10px] text-textLight">
+                      {payMap[r.user_id]?.hasRate
+                        ? `Rate ${peso(r.daily_rate)}/day`
+                        : 'No rate set'}
+                    </span>
+                    <span className="text-sm font-bold text-textDark">
+                      {payMap[r.user_id]?.hasRate
+                        ? peso(payMap[r.user_id].gross)
+                        : '—'}
+                    </span>
+                  </div>
                 </button>
 
                 {/* Footer action row */}
@@ -447,6 +637,7 @@ export default function PayrollAdminPage() {
         open={!!drawerRow}
         summary={drawerRow}
         cutoff={cutoff}
+        pay={drawerRow ? payMap[drawerRow.user_id] : null}
         onClose={() => setDrawerRow(null)}
         onAddAdjustment={() => {
           const r = drawerRow;
@@ -465,6 +656,12 @@ export default function PayrollAdminPage() {
         adminId={adminId}
         onSaved={load}
         onToast={showToast}
+      />
+
+      <HolidaysManagerModal
+        open={showHolidays}
+        onClose={() => setShowHolidays(false)}
+        onSaved={load}
       />
 
       {toast && (

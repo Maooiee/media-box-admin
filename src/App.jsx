@@ -1,9 +1,10 @@
-﻿import { Routes, Route, Navigate } from 'react-router-dom';
+﻿import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useAuth } from './core/hooks/useAuth';
 import { supabase } from './core/config/supabase';
 import LoginPage from './features/auth/presentation/LoginPage';
 import AppShell from './shared/components/AppShell';
+import ErrorBoundary from './shared/components/ErrorBoundary';
 import DashboardPage from './features/dashboard/presentation/DashboardPage';
 import QrCodePage from './features/qr/presentation/QrCodePage';
 import SelfieReviewPage from './features/attendance/presentation/SelfieReviewPage';
@@ -19,6 +20,7 @@ import PageLoader from './shared/components/PageLoader';
 
 export default function App() {
   const { session, loading } = useAuth();
+  const location = useLocation();
   const [adminCheck, setAdminCheck] = useState('idle');
 
   useEffect(() => {
@@ -71,25 +73,33 @@ export default function App() {
   }, [adminCheck]);
 
   // 👈 Using PageLoader with fullScreen and custom text
-  if (loading) return <PageLoader text="Connecting to Media Box" fullScreen />;
-  if (!session) return <LoginPage />;
-  if (adminCheck === 'checking' || adminCheck === 'idle') return <PageLoader text="Verifying admin access" fullScreen />;
-  if (adminCheck === 'denied') return <LoginPage />;
+  let content;
+  if (loading) content = <PageLoader text="Connecting to Media Box" fullScreen />;
+  else if (!session) content = <LoginPage />;
+  else if (adminCheck === 'checking' || adminCheck === 'idle')
+    content = <PageLoader text="Verifying admin access" fullScreen />;
+  else if (adminCheck === 'denied') content = <LoginPage />;
+  else
+    content = (
+      <Routes>
+        <Route element={<AppShell />}>
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard"  element={<DashboardPage />} />
+          <Route path="/qr"         element={<QrCodePage />} />
+          <Route path="/attendance" element={<SelfieReviewPage />} />
+          <Route path="/records"    element={<AttendanceAllPage />} />
+          <Route path="/tasks"      element={<TasksPage />} />
+          <Route path="/shifts"     element={<ShiftsAdminPage />} />
+          <Route path="/employees"  element={<EmployeesPage />} />
+          <Route path="/employees/:id" element={<EmployeeDetailPage />} />
+          <Route path="/payroll"    element={<PayrollAdminPage />} />
+        </Route>
+      </Routes>
+    );
 
-  return (
-    <Routes>
-      <Route element={<AppShell />}>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/dashboard"  element={<DashboardPage />} />
-        <Route path="/qr"         element={<QrCodePage />} />
-        <Route path="/attendance" element={<SelfieReviewPage />} />
-        <Route path="/records"    element={<AttendanceAllPage />} />
-        <Route path="/tasks"      element={<TasksPage />} />
-        <Route path="/shifts"     element={<ShiftsAdminPage />} />
-        <Route path="/employees"  element={<EmployeesPage />} />
-        <Route path="/employees/:id" element={<EmployeeDetailPage />} />
-        <Route path="/payroll"    element={<PayrollAdminPage />} />
-      </Route>
-    </Routes>
-  );
+  // ErrorBoundary wraps EVERY render path (login, loaders, routes) so a
+  // component crash shows a recovery UI instead of white-screening the
+  // whole admin panel. key = pathname → navigating remounts it, clearing
+  // the error automatically.
+  return <ErrorBoundary key={location.pathname}>{content}</ErrorBoundary>;
 }

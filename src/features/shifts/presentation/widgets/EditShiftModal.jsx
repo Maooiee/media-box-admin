@@ -2,6 +2,7 @@
 import { Save, Trash2 } from 'lucide-react';
 import Modal from '../../../../shared/components/Modal';
 import Button from '../../../../shared/components/Button';
+import DatePicker from '../../../../shared/components/DatePicker';
 import { shiftsAdminRepository } from '../../data/shiftsAdminRepository';
 import { employeesRepository } from '../../../employees/data/employeesRepository';
 import { SHIFT_KINDS } from '../../domain/Shift';
@@ -135,11 +136,10 @@ export default function EditShiftModal({ open, shift, onClose, onSaved }) {
 
         {!isEdit && (
           <Field label="DATE">
-            <input
-              type="date"
+            <DatePicker
               value={shiftDate}
-              onChange={(e) => setShiftDate(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-border focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+              onChange={setShiftDate}
+              placeholder="Pick a date"
             />
           </Field>
         )}

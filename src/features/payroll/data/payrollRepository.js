@@ -3,9 +3,35 @@
 // Data layer for admin-side payroll summaries + manual adjustments.
 
 import { supabase } from '../../../core/config/supabase';
+import { aggregatePayrollRows, addDaysISO } from '../domain/payrollCalc';
 
 function fmtISO(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function periodLabel(start, end) {
+  return `${start.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })} – ${end.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+}
+
+/// Weekly pay periods — Monday to Sunday, most recent first.
+export function recentWeeklyCutoffs(count = 12) {
+  const out = [];
+  const now = new Date();
+  // Monday of the current week (getDay(): 0 = Sun … 6 = Sat)
+  const sinceMonday = (now.getDay() + 6) % 7;
+  const currentMonday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - sinceMonday);
+
+  for (let i = 0; i < count; i++) {
+    const start = new Date(currentMonday);
+    start.setDate(start.getDate() - i * 7);
+    const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6);
+    out.push({
+      start: fmtISO(start),
+      end: fmtISO(end),
+      label: periodLabel(start, end),
+    });
+  }
+  return out;
 }
 
 export function recentCutoffs(count = 12) {
@@ -50,6 +76,71 @@ export async function fetchPayrollForCutoff({ from, to }) {
 
   if (error) throw error;
   return data ?? [];
+}
+
+/// Builds the payroll summary for ANY period (weekly, semi-monthly, …)
+/// from the raw tables — the payroll_summary view is locked to semi-monthly
+/// cutoffs. Also pulls each employee's daily_rate in the same pass.
+///
+/// Attendance is fetched starting one day before `from` because the
+/// unworked-regular-holiday rule needs to see the day before a holiday
+/// (aggregatePayrollRows ignores that extra day when counting).
+///
+/// Returns { rows, attendance, ratesAvailable }. ratesAvailable is false
+/// when the payroll migration adding profiles.daily_rate has not run yet.
+export async function fetchPayrollRows({ from, to }) {
+  const dayBefore = addDaysISO(from, -1);
+
+  const profilesColumns =
+    'id, full_name, employee_id, position, daily_rate, is_active';
+
+  const attendancePromise = supabase
+    .from('attendance_records')
+    .select('user_id, date, time_in, time_out, status')
+    .gte('date', dayBefore)
+    .lte('date', to);
+
+  const adjustmentsPromise = supabase
+    .from('payroll_adjustments')
+    .select('user_id, work_date, kind, minutes')
+    .gte('work_date', from)
+    .lte('work_date', to);
+
+  let profilesRes = await supabase.from('profiles').select(profilesColumns);
+  let ratesAvailable = true;
+  if (profilesRes.error && /daily_rate/.test(profilesRes.error.message)) {
+    // Migration not run yet — retry without the rate column.
+    ratesAvailable = false;
+    profilesRes = await supabase
+      .from('profiles')
+      .select('id, full_name, employee_id, position, is_active');
+  }
+
+  const [attendanceRes, adjustmentsRes] = await Promise.all([
+    attendancePromise,
+    adjustmentsPromise,
+  ]);
+
+  const firstError =
+    profilesRes.error || attendanceRes.error || adjustmentsRes.error;
+  if (firstError) throw firstError;
+
+  const attendance = attendanceRes.data ?? [];
+
+  return {
+    rows: aggregatePayrollRows({
+      profiles: (profilesRes.data ?? []).map((p) => ({
+        ...p,
+        daily_rate: ratesAvailable ? p.daily_rate : null,
+      })),
+      attendance,
+      adjustments: adjustmentsRes.data ?? [],
+      from,
+      to,
+    }),
+    attendance,
+    ratesAvailable,
+  };
 }
 
 export async function fetchAdjustments({ userId, from, to }) {
@@ -117,7 +208,9 @@ export async function deleteAdjustment(id) {
 
 export const payrollRepository = {
   recentCutoffs,
+  recentWeeklyCutoffs,
   fetchPayrollForCutoff,
+  fetchPayrollRows,
   fetchAdjustments,
   fetchDailyAttendance,
   addAdjustment,

@@ -6,6 +6,7 @@ export default function EditEmployeeModal({ open, employee, onClose, onSaved }) 
   const [fullName, setFullName] = useState('');
   const [position, setPosition] = useState('');
   const [schedule, setSchedule] = useState('');
+  const [dailyRate, setDailyRate] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
   const [isActive, setIsActive] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -16,6 +17,7 @@ export default function EditEmployeeModal({ open, employee, onClose, onSaved }) 
       setFullName(employee.fullName ?? '');
       setPosition(employee.position ?? '');
       setSchedule(employee.schedule ?? '');
+      setDailyRate(employee.dailyRate != null ? String(employee.dailyRate) : '');
       setIsAdmin(employee.isAdmin ?? false);
       setIsActive(employee.isActive ?? true);
       setError('');
@@ -27,10 +29,16 @@ export default function EditEmployeeModal({ open, employee, onClose, onSaved }) 
     setError('');
     setSaving(true);
     try {
+      const trimmedRate = dailyRate.trim();
+      const rate = trimmedRate === '' ? null : Number(trimmedRate);
+      if (trimmedRate !== '' && (Number.isNaN(rate) || rate < 0)) {
+        throw new Error('Daily rate must be a valid amount');
+      }
       await employeesRepository.updateEmployee(employee.id, {
         fullName: fullName.trim(),
         position: position.trim(),
         schedule: schedule.trim(),
+        dailyRate: rate,
         isAdmin,
         isActive,
       });
@@ -93,6 +101,18 @@ export default function EditEmployeeModal({ open, employee, onClose, onSaved }) 
               value={schedule}
               onChange={(e) => setSchedule(e.target.value)}
               placeholder="Mon-Fri 9AM-6PM"
+              className="w-full px-3 py-2.5 rounded-xl border border-border bg-bg text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+            />
+          </Field>
+
+          <Field label="Daily Rate (₱)">
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={dailyRate}
+              onChange={(e) => setDailyRate(e.target.value)}
+              placeholder="Leave empty for no rate"
               className="w-full px-3 py-2.5 rounded-xl border border-border bg-bg text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
             />
           </Field>

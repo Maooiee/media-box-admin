@@ -12,7 +12,7 @@ function getFirstDayOfMonth(year, month) {
   return new Date(year, month, 1).getDay();
 }
 
-export default function DatePicker({ value, onChange, placeholder = "Select date" }) {
+export default function DatePicker({ value, onChange, placeholder = "Select date", min, max }) {
   const [open, setOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [coords, setCoords] = useState({ top: 0, left: 0 });
@@ -84,6 +84,21 @@ export default function DatePicker({ value, onChange, placeholder = "Select date
     const d = String(dateObj.getDate()).padStart(2, '0');
     onChange(`${y}-${m}-${d}`);
     setOpen(false);
+  };
+
+  // A date is outside the allowed window if it falls before `min` or after `max`.
+  // Both bounds are 'YYYY-MM-DD' strings, so plain string comparison works.
+  const toStr = (dt) => {
+    const y = dt.getFullYear();
+    const m = String(dt.getMonth() + 1).padStart(2, '0');
+    const d = String(dt.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+  const isOutOfRange = (dt) => {
+    const s = toStr(dt);
+    if (min && s < min) return true;
+    if (max && s > max) return true;
+    return false;
   };
 
   const handleClear = (e) => {
@@ -169,15 +184,18 @@ export default function DatePicker({ value, onChange, placeholder = "Select date
               const dateStr = `${y}-${m}-${day}`;
               const isSelected = dateStr === value;
               const isToday = dateStr === todayStr;
+              const disabled = isOutOfRange(d.date);
 
               return (
                 <button
                   key={i}
-                  onClick={() => selectDate(d.date, d.muted)}
+                  onClick={() => !disabled && selectDate(d.date, d.muted)}
+                  disabled={disabled}
                   className={`w-7 h-7 mx-auto rounded-full flex items-center justify-center text-xs font-semibold transition
                     ${d.muted ? 'text-textFaint hover:bg-bg' : 'text-textDark hover:bg-bg'}
                     ${isSelected ? '!bg-primary !text-white shadow-sm shadow-primary/30' : ''}
                     ${isToday && !isSelected ? 'ring-1 ring-primary/40 text-primary' : ''}
+                    ${disabled ? 'opacity-30 cursor-not-allowed hover:bg-transparent line-through' : ''}
                   `}
                 >
                   {d.day}
