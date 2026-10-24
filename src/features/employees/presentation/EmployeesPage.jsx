@@ -2,7 +2,7 @@
 import { useNavigate } from 'react-router-dom';
 import {
   ChevronRight, Mail, Briefcase, Calendar, BadgeCheck,
-  Plus, Search, Edit3, Power, Users,
+  Plus, Search, Edit3, Power, Users, KeyRound,
 } from 'lucide-react';
 import { employeesRepository } from '../data/employeesRepository';
 import { createEmployee } from '../domain/Employee';
@@ -11,6 +11,7 @@ import { supabase } from '../../../core/config/supabase';
 import PageHeader from '../../../shared/components/PageHeader';
 import AddEmployeeModal from './widgets/AddEmployeeModal';
 import EditEmployeeModal from './widgets/EditEmployeeModal';
+import ResetPasswordModal from './widgets/ResetPasswordModal';
 
 const FILTERS = [
   { key: 'all',      label: 'All' },
@@ -27,6 +28,7 @@ export default function EmployeesPage() {
   const [filter, setFilter] = useState('all');
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [resetting, setResetting] = useState(null);
   const [toast, setToast] = useState(null);
   const navigate = useNavigate();
 
@@ -210,6 +212,14 @@ export default function EmployeesPage() {
                     <Edit3 size={13} className="hidden md:block" />
                   </button>
                   <button
+                    onClick={(ev) => { ev.stopPropagation(); setResetting(e); }}
+                    title="Reset password"
+                    className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-white border border-border hover:bg-bg flex items-center justify-center text-textMedium hover:text-primary transition shadow-sm"
+                  >
+                    <KeyRound size={12} className="md:hidden" />
+                    <KeyRound size={13} className="hidden md:block" />
+                  </button>
+                  <button
                     onClick={(ev) => { ev.stopPropagation(); handleToggleActive(e); }}
                     title={e.isActive ? 'Deactivate' : 'Reactivate'}
                     className={`w-7 h-7 md:w-8 md:h-8 rounded-full border flex items-center justify-center transition shadow-sm ${
@@ -332,6 +342,15 @@ export default function EmployeesPage() {
             showToast('Employee updated');
             loadAll();
           }}
+        />
+      )}
+
+      {resetting && (
+        <ResetPasswordModal
+          open={!!resetting}
+          employee={resetting}
+          onClose={() => setResetting(null)}
+          onSaved={() => showToast('Password updated')}
         />
       )}
 

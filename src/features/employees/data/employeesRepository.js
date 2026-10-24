@@ -1,7 +1,9 @@
 ﻿import { supabase } from '../../../core/config/supabase';
 
-const EDGE_FUNCTION_URL =
-  'https://qbefrttyhmhssdolbfhi.supabase.co/functions/v1/create-employee';
+const FUNCTIONS_BASE_URL =
+  'https://qbefrttyhmhssdolbfhi.supabase.co/functions/v1';
+
+const EDGE_FUNCTION_URL = `${FUNCTIONS_BASE_URL}/create-employee`;
 
 export const employeesRepository = {
   async fetchAll() {
@@ -50,6 +52,29 @@ export const employeesRepository = {
 
     const body = await res.json();
     if (!res.ok) throw new Error(body.error || 'Failed to create employee');
+    return body;
+  },
+
+  /// Resets an employee's login password via a Supabase Edge Function.
+  /// When no password is passed, the server generates a temporary one.
+  /// Returns { password, temporary } — the password is shown only once.
+  async resetPassword({ userId, password }) {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
+
+    const res = await fetch(`${FUNCTIONS_BASE_URL}/reset-employee-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ user_id: userId, password: password || null }),
+    });
+
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error || 'Failed to reset password');
     return body;
   },
 
