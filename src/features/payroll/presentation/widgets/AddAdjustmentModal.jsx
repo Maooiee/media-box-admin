@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { X, Plus } from 'lucide-react';
 import { payrollRepository } from '../../data/payrollRepository';
+import DatePicker from '../../../../shared/components/DatePicker';
 
 const today = () => {
   const d = new Date();
@@ -136,14 +137,16 @@ export default function AddAdjustmentModal({
             <label className="block text-[10px] font-bold tracking-wider uppercase text-textLight mb-1.5">
               Work date
             </label>
-            <input
-              type="date"
+            <DatePicker
               value={workDate}
+              onChange={setWorkDate}
               min={cutoff?.start}
               max={cutoff?.end}
-              onChange={(e) => setWorkDate(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-border bg-bg text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+              placeholder="Pick a work date"
             />
+            <p className="text-[10px] text-textLight mt-1.5">
+              Must fall within {cutoff?.start} → {cutoff?.end}
+            </p>
           </div>
 
           <div>

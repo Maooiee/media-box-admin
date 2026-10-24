@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { X, CalendarDays, Plus, Trash2, Pencil, Check, Star } from 'lucide-react';
 import { holidaysRepository } from '../../data/holidaysRepository';
+import DatePicker from '../../../../shared/components/DatePicker';
 
 // Admin UI for the Philippine holiday calendar (public.holidays).
 //   regular → 200% worked / 100% unworked
@@ -175,11 +176,10 @@ export default function HolidaysManagerModal({ open, onClose, onSaved }) {
                 <label className="block text-[10px] font-bold tracking-wider text-textLight uppercase mb-1.5">
                   Date
                 </label>
-                <input
-                  type="date"
+                <DatePicker
                   value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-xl border border-border bg-bg text-sm text-textDark focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                  onChange={setDate}
+                  placeholder="Pick a date"
                 />
               </div>
               <div>

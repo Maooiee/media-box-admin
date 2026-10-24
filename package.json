@@ -8,6 +8,7 @@
     "build": "vite build",
     "lint": "oxlint",
     "test:payroll": "vite build --ssr scripts/calc.test.js --outDir dist-ssr-test --emptyOutDir && node dist-ssr-test/calc.test.js",
+    "test:boundary": "vite build --ssr scripts/boundary.test.jsx --outDir dist-ssr-test --emptyOutDir && node dist-ssr-test/boundary.test.js",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -25,6 +26,7 @@
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
     "autoprefixer": "^10.6.1",
+    "jsdom": "^30.1.3",
     "oxlint": "^1.81.0",
     "postcss": "^8.5.28",
     "tailwindcss": "^3.4.19",

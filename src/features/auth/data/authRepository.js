@@ -13,4 +13,13 @@ export const authRepository = {
   async signOut() {
     await supabase.auth.signOut();
   },
+
+  /// Emails the user a password-reset link.
+  async resetPassword(email) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/login`,
+    });
+    if (error) throw error;
+    return { success: true };
+  },
 };

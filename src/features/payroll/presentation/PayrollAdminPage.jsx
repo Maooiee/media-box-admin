@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Download,
   FileText,
@@ -14,6 +14,8 @@ import {
   TrendingDown,
   Plus,
   Wallet,
+  ChevronDown,
+  Check,
 } from 'lucide-react';
 import { supabase } from '../../../core/config/supabase';
 import { payrollRepository, recentCutoffs, recentWeeklyCutoffs } from '../data/payrollRepository';
@@ -49,6 +51,7 @@ export default function PayrollAdminPage() {
   }, [cutoffs]);
 
   const [cutoffIdx, setCutoffIdx] = useState(defaultIdx);
+  const [cutoffOpen, setCutoffOpen] = useState(false);
   const [rows, setRows] = useState([]);
   const [payMap, setPayMap] = useState({});
   const [setupMissing, setSetupMissing] = useState(false);
@@ -59,8 +62,21 @@ export default function PayrollAdminPage() {
   const [adjustRow, setAdjustRow] = useState(null);
   const [toast, setToast] = useState(null);
   const [adminId, setAdminId] = useState(null);
+  const cutoffRef = useRef(null);
 
   const cutoff = cutoffs[cutoffIdx];
+
+  // Close the cutoff dropdown when clicking anywhere outside it
+  useEffect(() => {
+    if (!cutoffOpen) return;
+    function onClick(e) {
+      if (cutoffRef.current && !cutoffRef.current.contains(e.target)) {
+        setCutoffOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, [cutoffOpen]);
 
   useEffect(() => {
     setCutoffIdx(defaultIdx);
@@ -227,19 +243,49 @@ export default function PayrollAdminPage() {
         {/* Controls — stack under title on mobile, right on desktop */}
         <div className="mt-3 md:mt-4 flex flex-col md:flex-row md:items-center gap-2 md:gap-2">
           {/* Cutoff picker — full width on mobile */}
-          <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-xl border border-border shadow-sm md:min-w-[220px]">
+          <div ref={cutoffRef} className="relative flex items-center gap-2 bg-white px-3 py-2 rounded-xl border border-border shadow-sm md:min-w-[220px]">
             <Calendar size={14} className="text-primary shrink-0" />
-            <select
-              value={cutoffIdx}
-              onChange={(e) => setCutoffIdx(Number(e.target.value))}
-              className="flex-1 min-w-0 bg-transparent text-xs md:text-sm font-semibold text-textDark outline-none cursor-pointer"
+            <button
+              type="button"
+              onClick={() => setCutoffOpen((o) => !o)}
+              className="flex-1 min-w-0 flex items-center justify-between gap-2 text-left cursor-pointer"
             >
-              {cutoffs.map((c, i) => (
-                <option key={c.start} value={i}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
+              <span className="truncate text-xs md:text-sm font-semibold text-textDark">
+                {cutoffs[cutoffIdx]?.label}
+              </span>
+              <ChevronDown
+                size={14}
+                className={`text-textLight shrink-0 transition-transform ${cutoffOpen ? 'rotate-180' : ''}`}
+              />
+            </button>
+
+            {cutoffOpen && (
+              <div className="absolute z-30 top-full left-0 right-0 mt-2 bg-white border border-border rounded-2xl shadow-2xl overflow-hidden animate-[slideUp_180ms_ease-out]">
+                <div className="max-h-72 overflow-y-auto p-2 hide-scrollbar">
+                  {cutoffs.map((c, i) => {
+                    const selected = i === cutoffIdx;
+                    return (
+                      <button
+                        key={c.start}
+                        type="button"
+                        onClick={() => {
+                          setCutoffIdx(i);
+                          setCutoffOpen(false);
+                        }}
+                        className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl transition text-left ${
+                          selected ? 'bg-primary-light/60' : 'hover:bg-bg'
+                        }`}
+                      >
+                        <span className={`text-xs md:text-sm font-semibold ${selected ? 'text-primary' : 'text-textDark'}`}>
+                          {c.label}
+                        </span>
+                        {selected && <Check size={14} className="text-primary shrink-0" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Period length toggle */}

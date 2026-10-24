@@ -10,7 +10,25 @@ import { supabase } from '../../../core/config/supabase';
 import { formatTime } from '../../../core/utils/formatters';
 import { exportAttendancePDF } from '../../../core/utils/pdfExport';
 
+// 🧪 DEV-ONLY crash trigger — verifies the ErrorBoundary.
+//   1. Start the dev server and log in.
+//   2. Visit http://localhost:5173/dashboard?crash
+//   The page throws once, the ErrorBoundary shows its fallback, and
+//   clicking "Try again" recovers (it only throws a single time per
+//   page load). A full reload re-arms it.
+// In production `import.meta.env.DEV` is statically false, so this is
+// dead code and gets stripped from the bundle.
+let devCrashArmed = true;
+function maybeDevCrash() {
+  if (!import.meta.env.DEV || !devCrashArmed) return;
+  if (typeof window === 'undefined') return;
+  if (!new URLSearchParams(window.location.search).has('crash')) return;
+  devCrashArmed = false;
+  throw new Error('Test crash — ErrorBoundary verification via ?crash');
+}
+
 export default function DashboardPage() {
+  maybeDevCrash(); // must run before hooks: it throws on the first pass only
   const navigate = useNavigate();
   const [range, setRange] = useState('today');
   const [loading, setLoading] = useState(true);
