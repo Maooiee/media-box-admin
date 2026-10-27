@@ -5,6 +5,7 @@
 
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { toManilaDate } from './formatters';
 
 const COLORS = {
   primary: [242, 106, 27],
@@ -481,7 +482,7 @@ export async function exportAttendancePDF(
     });
   }
 
-  const stamp = new Date().toISOString().slice(0, 10);
+  const stamp = toManilaDate();
   doc.save(`mediabox-attendance-${stamp}.pdf`);
 }
 

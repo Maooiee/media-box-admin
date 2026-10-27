@@ -3,8 +3,18 @@
 // Payroll PDF generator — Summary (one row per employee) and
 // Detailed (one page per employee with day-by-day breakdown).
 
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import jsPDFImport from 'jspdf';
+import autoTableImport from 'jspdf-autotable';
+
+// Vite resolves the browser ES build (default export = constructor), while
+// Node resolves the CJS build (named exports). Normalise both so the same
+// generator can run in the browser and in server-side scripts/tests.
+const jsPDF =
+  typeof jsPDFImport === 'function' ? jsPDFImport : jsPDFImport?.jsPDF;
+const autoTable =
+  typeof autoTableImport === 'function'
+    ? autoTableImport
+    : (autoTableImport?.default ?? autoTableImport?.autoTable);
 
 export const COLORS = {
   primary: [242, 106, 27],
@@ -42,6 +52,42 @@ function fmtDateTime() {
     minute: '2-digit',
   });
 }
+
+// jsPDF's Helvetica has no ₱ glyph, so PDFs use "PHP 1,234.56".
+function money(n) {
+  return `PHP ${(Number(n) || 0).toLocaleString('en-PH', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+// Plain amount for table cells (the column header / note carries the currency).
+function amount(n) {
+  return (Number(n) || 0).toLocaleString('en-PH', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+const ADJUSTMENT_LABELS = {
+  overtime: 'Overtime (+)',
+  undertime: 'Undertime (−)',
+  night_diff: 'Night differential',
+  rest_day: 'Rest day',
+  allowance: 'Allowance',
+  bonus: 'Bonus',
+  loan: 'Loan',
+  cash_advance: 'Cash advance',
+  other_deduction: 'Other deduction',
+};
+
+const AMOUNT_KINDS = new Set([
+  'allowance',
+  'bonus',
+  'loan',
+  'cash_advance',
+  'other_deduction',
+]);
 
 function fmtTime(iso) {
   if (!iso) return '—';
@@ -106,21 +152,24 @@ export function drawHeader(doc, { title, subtitle, cutoffLabel }) {
   doc.line(rightX - 130, 22, rightX, 22);
 }
 
-function drawTotalsStrip(doc, y, rows) {
+function drawTotalsStrip(doc, y, rows, payMap = null) {
   const { marginX, width } = PAGE;
   const innerW = width - marginX * 2;
   const gap = 8;
+  const hasPay = !!payMap;
+  const totalGross = hasPay
+    ? rows.reduce((s, r) => s + (Number(payMap[r.user_id]?.gross) || 0), 0)
+    : 0;
+  const totalNet = hasPay
+    ? rows.reduce((s, r) => s + (Number(payMap[r.user_id]?.net) || 0), 0)
+    : 0;
+
   const cards = [
     { label: 'Employees', value: rows.length, color: COLORS.ink },
     {
       label: 'Present',
       value: rows.reduce((s, r) => s + r.days_present, 0),
       color: COLORS.green,
-    },
-    {
-      label: 'Late',
-      value: rows.reduce((s, r) => s + r.days_late, 0),
-      color: COLORS.amber,
     },
     {
       label: 'Absent',
@@ -135,8 +184,17 @@ function drawTotalsStrip(doc, y, rows) {
       color: COLORS.ink,
     },
   ];
+
+  if (hasPay) {
+    cards.push(
+      { label: 'Gross Pay', value: money(totalGross), color: COLORS.ink },
+      { label: 'Net Pay', value: money(totalNet), color: COLORS.green }
+    );
+  }
+
   const cardW = (innerW - gap * (cards.length - 1)) / cards.length;
   const cardH = 52;
+  const isMoney = (v) => String(v).startsWith('PHP');
 
   cards.forEach((c, i) => {
     const x = marginX + i * (cardW + gap);
@@ -155,8 +213,15 @@ function drawTotalsStrip(doc, y, rows) {
 
     doc.setTextColor(...c.color);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(18);
-    doc.text(String(c.value), x + 14, y + 42);
+    const text = String(c.value);
+    let size = isMoney(c.value) ? 11 : 18;
+    doc.setFontSize(size);
+    // Shrink long amounts instead of letting them run into the next card.
+    while (size > 8 && doc.getTextWidth(text) > cardW - 20) {
+      size -= 0.5;
+      doc.setFontSize(size);
+    }
+    doc.text(text, x + 14, y + 42);
   });
 
   return y + cardH;
@@ -196,6 +261,8 @@ export async function exportPayrollPDF(
     detailed = false,
     loadDaily = null,
     loadAdjustments = null,
+    payMap = null,
+    returnDoc = false,
   } = {}
 ) {
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
@@ -209,66 +276,137 @@ export async function exportPayrollPDF(
     });
 
     let y = 124;
-    y = drawTotalsStrip(doc, y, rows);
+    y = drawTotalsStrip(doc, y, rows, payMap);
     y += 24;
 
-    const body = rows.map((r) => [
-      r.full_name,
-      r.employee_id,
-      String(r.days_present),
-      String(r.days_late),
-      String(r.days_absent),
-      String(r.days_on_leave),
-      Number(r.total_hours_worked).toFixed(2),
-      Number(r.overtime_hours).toFixed(2),
-      Number(r.undertime_hours).toFixed(2),
-    ]);
+    const body = rows.map((r) => {
+      const p = payMap?.[r.user_id];
+      return [
+        r.full_name,
+        r.employee_id,
+        String(r.days_present),
+        String(r.days_late),
+        String(r.days_absent),
+        `${r.days_paid_leave ?? 0} / ${r.days_unpaid_leave ?? 0}`,
+        Number(r.total_hours_worked).toFixed(2),
+        Number(r.overtime_hours).toFixed(2),
+        p ? amount(p.gross) : '—',
+        p ? amount(p.totalDeductions) : '—',
+        p ? amount(p.net) : '—',
+      ];
+    });
 
     autoTable(doc, {
       startY: y,
       head: [[
         'EMPLOYEE',
         'ID',
-        'PRESENT',
+        'PRES.',
         'LATE',
-        'ABSENT',
-        'LEAVE',
-        'HOURS',
+        'ABS.',
+        'LEAVE P/U',
+        'HRS',
         'OT',
-        'UT',
+        'GROSS',
+        'DEDUCT.',
+        'NET',
       ]],
       body,
       theme: 'plain',
       styles: {
         font: 'helvetica',
-        fontSize: 9,
-        cellPadding: { top: 11, bottom: 11, left: 8, right: 8 },
+        fontSize: 7,
+        cellPadding: { top: 7, bottom: 7, left: 4, right: 4 },
         textColor: COLORS.body,
         lineColor: COLORS.line,
         lineWidth: { top: 0, right: 0, bottom: 0.5, left: 0 },
         valign: 'middle',
+        overflow: 'linebreak',
       },
       headStyles: {
         fillColor: COLORS.primarySoft,
         textColor: COLORS.primaryDark,
         fontStyle: 'bold',
-        fontSize: 7.5,
-        cellPadding: { top: 12, bottom: 12, left: 8, right: 8 },
+        fontSize: 6,
+        cellPadding: { top: 9, bottom: 9, left: 4, right: 4 },
       },
       alternateRowStyles: { fillColor: COLORS.band },
       columnStyles: {
-        0: { fontStyle: 'bold', textColor: COLORS.ink },
-        1: { textColor: COLORS.soft, fontSize: 8.5 },
-        2: { halign: 'center', textColor: COLORS.green, fontStyle: 'bold' },
-        3: { halign: 'center', textColor: COLORS.amber, fontStyle: 'bold' },
-        4: { halign: 'center', textColor: COLORS.red, fontStyle: 'bold' },
-        5: { halign: 'center', textColor: COLORS.blue, fontStyle: 'bold' },
-        6: { halign: 'right', fontStyle: 'bold', textColor: COLORS.ink },
-        7: { halign: 'right', textColor: COLORS.green, fontStyle: 'bold' },
-        8: { halign: 'right', textColor: COLORS.red, fontStyle: 'bold' },
+        0: {
+          fontStyle: 'bold',
+          textColor: COLORS.ink,
+          // Sum of all column widths = the printable width, so autoTable does
+          // not log "units could not fit page" for the leftover space.
+          cellWidth: 107.28,
+          halign: 'left',
+        },
+        1: { textColor: COLORS.soft, fontSize: 6.5, cellWidth: 50 },
+        2: {
+          halign: 'center',
+          textColor: COLORS.green,
+          fontStyle: 'bold',
+          cellWidth: 32,
+        },
+        3: {
+          halign: 'center',
+          textColor: COLORS.amber,
+          fontStyle: 'bold',
+          cellWidth: 28,
+        },
+        4: {
+          halign: 'center',
+          textColor: COLORS.red,
+          fontStyle: 'bold',
+          cellWidth: 32,
+        },
+        5: {
+          halign: 'center',
+          textColor: COLORS.blue,
+          fontStyle: 'bold',
+          cellWidth: 50,
+        },
+        6: {
+          halign: 'right',
+          fontStyle: 'bold',
+          textColor: COLORS.ink,
+          cellWidth: 34,
+        },
+        7: {
+          halign: 'right',
+          textColor: COLORS.green,
+          fontStyle: 'bold',
+          cellWidth: 28,
+        },
+        8: {
+          halign: 'right',
+          textColor: COLORS.ink,
+          fontStyle: 'bold',
+          cellWidth: 52,
+        },
+        9: {
+          halign: 'right',
+          textColor: COLORS.red,
+          cellWidth: 56,
+        },
+        10: {
+          halign: 'right',
+          textColor: COLORS.ink,
+          fontStyle: 'bold',
+          cellWidth: 46,
+        },
       },
       margin: { left: PAGE.marginX, right: PAGE.marginX, bottom: PAGE.marginBottom },
     });
+
+    const tableEnd = doc.lastAutoTable?.finalY ?? y;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(...COLORS.soft);
+    doc.text(
+      'Amounts in Philippine pesos (PHP). Leave column is paid / unpaid days.',
+      PAGE.marginX,
+      Math.min(tableEnd + 14, PAGE.height - PAGE.marginBottom - 6)
+    );
 
     const pageCount = doc.internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
@@ -276,37 +414,41 @@ export async function exportPayrollPDF(
       drawFooter(doc, i, pageCount);
     }
 
+    if (returnDoc) return doc;
     doc.save(`mediabox-payroll-summary-${cutoffStart}_${cutoffEnd}.pdf`);
     return;
   }
 
   // ─── DETAILED: one page per employee ───
-  for (let i = 0; i < rows.length; i++) {
-    const r = rows[i];
-    if (i > 0) doc.addPage();
-
+  const drawEmployeePageHeader = (row) => {
     drawHeader(doc, {
       title: 'Attendance Report · Payroll',
       subtitle: 'Employee Payroll Detail',
       cutoffLabel,
     });
 
-    // Employee name block
     let y = 124;
     doc.setTextColor(...COLORS.ink);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(16);
-    doc.text(r.full_name, PAGE.marginX, y);
+    doc.text(row.full_name, PAGE.marginX, y);
     y += 16;
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
     doc.setTextColor(...COLORS.soft);
     doc.text(
-      `${r.employee_id}${r.position ? ` · ${r.position}` : ''}`,
+      `${row.employee_id}${row.position ? ` · ${row.position}` : ''}`,
       PAGE.marginX,
       y
     );
-    y += 20;
+    return y + 22;
+  };
+
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    if (i > 0) doc.addPage();
+
+    let y = drawEmployeePageHeader(r);
 
     // Daily records
     let daily = [];
@@ -323,7 +465,7 @@ export async function exportPayrollPDF(
         fmtTime(d.time_in),
         missing ? 'Missing' : fmtTime(d.time_out),
         hoursBetween(d.time_in, d.time_out),
-        (d.status || '').toUpperCase(),
+        (d.status || '').toUpperCase().replace(/_/g, ' '),
       ];
     });
 
@@ -365,6 +507,12 @@ export async function exportPayrollPDF(
     }
 
     if (adjustments.length > 0) {
+      const adjustmentsHeight = 34 + adjustments.length * 24;
+      if (after + adjustmentsHeight > PAGE.height - PAGE.marginBottom) {
+        doc.addPage();
+        after = drawEmployeePageHeader(r);
+      }
+
       doc.setTextColor(...COLORS.ink);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(11);
@@ -373,14 +521,17 @@ export async function exportPayrollPDF(
 
       const adjBody = adjustments.map((a) => [
         a.work_date,
-        a.kind === 'overtime' ? 'Overtime (+)' : 'Undertime (−)',
-        `${a.minutes} min`,
+        ADJUSTMENT_LABELS[a.kind] ?? a.kind,
+        AMOUNT_KINDS.has(a.kind)
+          ? money(a.amount)
+          : `${a.minutes} min`,
+        a.status ? String(a.status).toUpperCase() : 'APPROVED',
         a.reason || '—',
       ]);
 
       autoTable(doc, {
         startY: after,
-        head: [['DATE', 'TYPE', 'MINUTES', 'REASON']],
+        head: [['DATE', 'TYPE', 'VALUE', 'STATUS', 'REASON']],
         body: adjBody,
         theme: 'plain',
         styles: {
@@ -408,49 +559,150 @@ export async function exportPayrollPDF(
       after = doc.lastAutoTable.finalY + 20;
     }
 
-    // Summary block
+    // Summary block — attendance and pay side by side so the whole breakdown
+    // fits on one page and never leaves a stranded "Net pay" row on page 2.
+    const pay = payMap?.[r.user_id] ?? r.pay ?? null;
+    const attendanceRows = [
+      ['Days present', String(r.days_present)],
+      ['Days late', String(r.days_late)],
+      ['Days absent', String(r.days_absent)],
+      ['Paid leave', String(r.days_paid_leave ?? 0)],
+      ['Unpaid leave', String(r.days_unpaid_leave ?? r.days_on_leave ?? 0)],
+      ['Missing time-out', String(r.days_missing_timeout)],
+      ['Hours worked', Number(r.total_hours_worked).toFixed(2)],
+      ['Overtime', Number(r.overtime_hours).toFixed(2)],
+      ['Undertime', Number(r.undertime_hours).toFixed(2)],
+    ];
+
+    const payRows = [];
+    if (pay) {
+      if (pay.basicPay !== undefined) {
+        payRows.push(
+          ['Basic pay', money(pay.basicPay)],
+          ['Paid leave pay', money(pay.paidLeavePay)],
+          ['Night differential', money(pay.nightDiffPay)],
+          ['Rest-day premium', money(pay.restDayPay)],
+          ['Overtime pay', money(pay.otPay)],
+          ['Allowances / bonus', money((pay.allowanceAmount || 0) + (pay.bonusAmount || 0))]
+        );
+        if ((Number(pay.utDeduction) || 0) > 0) {
+          payRows.push(['Less: undertime', money(pay.utDeduction)]);
+        }
+      }
+      payRows.push(
+        ['Gross pay', money(pay.gross)],
+        ['Total deductions', money(pay.totalDeductions)],
+        ['Net pay', money(pay.net)]
+      );
+      if (pay.thirteenthMonthAccrual !== undefined) {
+        payRows.push(['13th month accrual', money(pay.thirteenthMonthAccrual)]);
+      }
+    }
+
+    const summaryRowCount = Math.max(attendanceRows.length, payRows.length);
+    const summaryHeight = 26 + summaryRowCount * 16 + 8;
+    if (after + summaryHeight > PAGE.height - PAGE.marginBottom) {
+      doc.addPage();
+      after = drawEmployeePageHeader(r);
+    }
+
     doc.setTextColor(...COLORS.ink);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
     doc.text('Summary', PAGE.marginX, after);
-    after += 10;
+    after += 8;
+
+    const summaryStyles = {
+      font: 'helvetica',
+      fontSize: 8,
+      cellPadding: { top: 4.5, bottom: 4.5, left: 8, right: 8 },
+      textColor: COLORS.body,
+      lineColor: COLORS.line,
+      lineWidth: { top: 0, right: 0, bottom: 0.4, left: 0 },
+      valign: 'middle',
+    };
+    const summaryHeadStyles = {
+      fillColor: COLORS.primarySoft,
+      textColor: COLORS.primaryDark,
+      fontStyle: 'bold',
+      fontSize: 6.5,
+      cellPadding: { top: 6, bottom: 6, left: 8, right: 8 },
+    };
 
     autoTable(doc, {
       startY: after,
-      body: [
-        ['Days Present', String(r.days_present)],
-        ['Days Late', String(r.days_late)],
-        ['Days Absent', String(r.days_absent)],
-        ['Days On Leave', String(r.days_on_leave)],
-        ['Missing Time-Out', String(r.days_missing_timeout)],
-        ['Total Hours Worked', Number(r.total_hours_worked).toFixed(2)],
-        ['Overtime Hours', Number(r.overtime_hours).toFixed(2)],
-        ['Undertime Hours', Number(r.undertime_hours).toFixed(2)],
-      ],
+      tableWidth: 244,
+      head: [['ATTENDANCE', '']],
+      body: attendanceRows,
       theme: 'plain',
-      styles: {
-        font: 'helvetica',
-        fontSize: 9,
-        cellPadding: { top: 7, bottom: 7, left: 10, right: 10 },
-        textColor: COLORS.body,
-        lineColor: COLORS.line,
-        lineWidth: { top: 0, right: 0, bottom: 0.5, left: 0 },
-      },
+      styles: summaryStyles,
+      headStyles: summaryHeadStyles,
       columnStyles: {
-        0: { fontStyle: 'bold', textColor: COLORS.ink, cellWidth: 180 },
+        0: { fontStyle: 'bold', textColor: COLORS.ink },
         1: { halign: 'right', fontStyle: 'bold' },
       },
-      margin: { left: PAGE.marginX, right: PAGE.marginX, bottom: PAGE.marginBottom },
+      margin: {
+        left: PAGE.marginX,
+        right: PAGE.width - PAGE.marginX - 244,
+        bottom: PAGE.marginBottom,
+      },
     });
+    const leftEnd = doc.lastAutoTable.finalY;
+
+    autoTable(doc, {
+      startY: after,
+      tableWidth: 255,
+      head: [['PAY', 'AMOUNT']],
+      body: payRows.length ? payRows : [['No pay data', '—']],
+      theme: 'plain',
+      styles: summaryStyles,
+      headStyles: summaryHeadStyles,
+      columnStyles: {
+        0: { fontStyle: 'bold', textColor: COLORS.ink },
+        1: { halign: 'right', fontStyle: 'bold' },
+      },
+      didParseCell: (data) => {
+        if (data.section !== 'body') return;
+        const label = String(data.row.raw?.[0] ?? '').toLowerCase();
+        if (label === 'gross pay' || label === 'net pay') {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.textColor =
+            label === 'net pay' ? COLORS.green : COLORS.ink;
+          data.cell.styles.lineWidth = {
+            top: 0.6,
+            right: 0,
+            bottom: 0.4,
+            left: 0,
+          };
+        }
+      },
+      margin: {
+        left: PAGE.width - PAGE.marginX - 255,
+        right: PAGE.marginX,
+        bottom: PAGE.marginBottom,
+      },
+    });
+
+    after = Math.max(leftEnd, doc.lastAutoTable.finalY);
   }
 
   const pageCount = doc.internal.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
-    drawFooter(doc, i, pageCount);
+    drawFooter(doc, i, pageCount, 'Employee Payroll Detail');
   }
 
-  doc.save(`mediabox-payroll-detailed-${cutoffStart}_${cutoffEnd}.pdf`);
+  const employeeSuffix =
+    rows.length === 1
+      ? `-${String(rows[0].employee_id || rows[0].user_id || 'employee').replace(
+          /[^a-zA-Z0-9-_]/g,
+          ''
+        )}`
+      : '';
+  if (returnDoc) return doc;
+  doc.save(
+    `mediabox-payroll-detailed${employeeSuffix}-${cutoffStart}_${cutoffEnd}.pdf`
+  );
 }
 
 export default { exportPayrollPDF };

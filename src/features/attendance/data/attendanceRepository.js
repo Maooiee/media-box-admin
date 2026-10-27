@@ -1,4 +1,8 @@
 ﻿import { supabase } from '../../../core/config/supabase';
+import {
+  daysAgoManila,
+  toManilaDate,
+} from '../../../core/utils/formatters';
 
 export const attendanceRepository = {
   async fetchRecords({ filter = 'all', limit = 100 } = {}) {
@@ -12,11 +16,9 @@ export const attendanceRepository = {
       .limit(limit);
 
     if (filter === 'today') {
-      query = query.eq('date', new Date().toISOString().slice(0, 10));
+      query = query.eq('date', toManilaDate());
     } else if (filter === 'week') {
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      query = query.gte('date', weekAgo.toISOString().slice(0, 10));
+      query = query.gte('date', daysAgoManila(7));
     }
 
     const { data: records, error: recErr } = await query;

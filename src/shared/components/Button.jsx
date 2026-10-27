@@ -8,12 +8,11 @@
   ...props
 }) {
   const base = `
-    group
-    inline-flex items-center justify-center gap-2 font-semibold rounded-full
+    group inline-flex items-center justify-center gap-2 rounded-full font-semibold
     transition-all duration-200 ease-out
-    disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0
+    disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0
     hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]
-    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-2
+    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 focus-visible:ring-offset-2
   `;
 
   const sizes = {
@@ -28,13 +27,17 @@
       shadow-md shadow-primary/25
       hover:shadow-lg hover:shadow-primary/35
     `,
+    soft: `
+      bg-primary-light/50 text-primary border border-primary/20
+      hover:bg-primary-light hover:border-primary/35 hover:shadow-sm
+    `,
     outline: `
-      border border-border text-textDark bg-white
+      border border-border bg-white text-textDark
       hover:border-primary/40 hover:bg-primary-light/20 hover:text-primary
       hover:shadow-sm
     `,
     ghost: `
-      text-textMedium hover:text-textDark hover:bg-bg
+      text-textMedium hover:bg-bg hover:text-textDark
     `,
     danger: `
       bg-gradient-to-br from-red-500 to-red-600 text-white

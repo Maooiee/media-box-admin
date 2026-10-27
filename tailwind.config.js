@@ -35,9 +35,12 @@ export default {
         display: ['"Playfair Display"', 'serif'],
       },
       boxShadow: {
-        card: '0 1px 2px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.04)',
-        'card-hover': '0 4px 8px rgba(0,0,0,0.05), 0 12px 24px rgba(0,0,0,0.06)',
+        // Warm-neutral, layered shadows. Softer than a hard drop shadow so
+        // white cards feel lifted without looking heavy.
+        card: '0 1px 2px rgba(44,44,44,0.04), 0 8px 20px -14px rgba(44,44,44,0.12)',
+        'card-hover': '0 2px 4px rgba(44,44,44,0.05), 0 18px 36px -18px rgba(44,44,44,0.20)',
         brand: '0 8px 24px -8px rgba(242,106,27,0.35)',
+        float: '0 20px 48px -20px rgba(44,44,44,0.28)',
       },
       animation: {
         'fade-in': 'fadeIn 200ms ease-out',
@@ -75,6 +78,10 @@ export default {
         pageEnter: {
           '0%': { opacity: '0', transform: 'translateY(12px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        navItemIn: {
+          '0%': { opacity: '0', transform: 'translateX(-10px)' },
+          '100%': { opacity: '1', transform: 'translateX(0)' },
         },
         cardRise: {
           '0%': { opacity: '0', transform: 'translateY(20px)' },
@@ -129,6 +136,9 @@ export default {
         sheen: {
           '0%': { transform: 'translateX(-120%)' },
           '100%': { transform: 'translateX(220%)' },
+        },
+        shimmer: {
+          '100%': { transform: 'translateX(100%)' },
         },
       },
       transitionDuration: {

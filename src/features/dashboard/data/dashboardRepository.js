@@ -1,13 +1,20 @@
 ﻿import { supabase } from '../../../core/config/supabase';
+import {
+  daysAgoManila,
+  manilaMinutes,
+  toManilaDate,
+} from '../../../core/utils/formatters';
+import {
+  fetchLeaveDaysByUser,
+  fetchOnLeaveUserIds,
+} from '../../leave/data/leaveStatusRepository';
 
 function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+  return toManilaDate();
 }
 
 function daysAgoStr(n) {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  return d.toISOString().slice(0, 10);
+  return daysAgoManila(n);
 }
 
 export const dashboardRepository = {
@@ -57,22 +64,29 @@ export const dashboardRepository = {
   /** Counts for the past N days — used for the sparkline */
   async fetchWeeklyTrend(days = 7) {
     const from = daysAgoStr(days - 1);
-    const { data, error } = await supabase
-      .from('attendance_records')
-      .select('date, status')
-      .gte('date', from)
-      .lte('date', todayStr());
+    const to = todayStr();
+    const [recordsRes, leaveDays] = await Promise.all([
+      supabase
+        .from('attendance_records')
+        .select('user_id, date, status, time_in')
+        .gte('date', from)
+        .lte('date', to),
+      fetchLeaveDaysByUser(from, to),
+    ]);
+    const { data, error } = recordsRes;
     if (error) throw error;
 
     const buckets = {};
     for (let i = days - 1; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const key = d.toISOString().slice(0, 10);
+      const key = daysAgoManila(i);
       buckets[key] = { date: key, present: 0, late: 0, absent: 0, total: 0 };
     }
     for (const r of data ?? []) {
       if (!buckets[r.date]) continue;
+      // Employees on approved leave are not expected to work — never let
+      // their leave day inflate attendance/absence numbers.
+      if (r.status === 'on_leave') continue;
+      if (!r.time_in && leaveDays.get(r.user_id)?.has(r.date)) continue;
       buckets[r.date].total++;
       if (r.status === 'present') buckets[r.date].present++;
       else if (r.status === 'late') buckets[r.date].late++;
@@ -104,14 +118,25 @@ export const dashboardRepository = {
   /** Summary stats for the current week */
   async fetchWeeklySummary() {
     const from = daysAgoStr(6);
-    const { data, error } = await supabase
-      .from('attendance_records')
-      .select('user_id, date, status, time_in')
-      .gte('date', from)
-      .lte('date', todayStr());
+    const to = todayStr();
+    const [recordsRes, leaveDays] = await Promise.all([
+      supabase
+        .from('attendance_records')
+        .select('user_id, date, status, time_in')
+        .gte('date', from)
+        .lte('date', to),
+      fetchLeaveDaysByUser(from, to),
+    ]);
+    const { data, error } = recordsRes;
     if (error) throw error;
 
-    const rows = data ?? [];
+    // Leave days are not attendance: drop `on_leave` rows and any row that
+    // falls on an approved leave day without a real check-in.
+    const rows = (data ?? []).filter((r) => {
+      if (r.status === 'on_leave') return false;
+      if (r.time_in) return true;
+      return !leaveDays.get(r.user_id)?.has(r.date);
+    });
     const total = rows.length;
     const present = rows.filter((r) => r.status === 'present').length;
     const late = rows.filter((r) => r.status === 'late').length;
@@ -122,10 +147,7 @@ export const dashboardRepository = {
     // Avg check-in time (only for present/late)
     const times = rows
       .filter((r) => r.time_in)
-      .map((r) => {
-        const t = new Date(r.time_in);
-        return t.getHours() * 60 + t.getMinutes();
-      });
+      .map((r) => manilaMinutes(new Date(r.time_in)));
     const avgMins =
       times.length > 0
         ? Math.round(times.reduce((a, b) => a + b, 0) / times.length)
@@ -143,15 +165,34 @@ export const dashboardRepository = {
    * Selfie quality snapshot for today.
    * FIXED: uses typeof / Array.isArray guards so null or weird shapes
    * don't produce unexpected NaN or throw.
+   *
+   * Leave-aware:
+   *  - employees on approved leave are never counted as "No Selfie" or
+   *    "Flagged";
+   *  - "No Selfie" only counts employees who are scheduled to work today,
+   *    have not checked in, and are not on leave.
    */
   async fetchSelfieSnapshot() {
-    const { data, error } = await supabase
-      .from('attendance_records')
-      .select('selfie_url, selfie_quality_score, selfie_issues')
-      .eq('date', todayStr());
-    if (error) throw error;
+    const today = todayStr();
+    const [attendanceRes, shiftsRes, leaveDays] = await Promise.all([
+      supabase
+        .from('attendance_records')
+        .select('user_id, selfie_url, selfie_quality_score, selfie_issues, status, time_in')
+        .eq('date', today),
+      supabase
+        .from('shifts')
+        .select('user_id')
+        .eq('shift_date', today),
+      fetchLeaveDaysByUser(today, today),
+    ]);
+    if (attendanceRes.error) throw attendanceRes.error;
 
-    const rows = data ?? [];
+    const leaveToday = new Set(leaveDays.keys());
+
+    const rows = (attendanceRes.data ?? []).filter(
+      (r) => r.status !== 'on_leave' && !leaveToday.has(r.user_id)
+    );
+
     const withScore = rows.filter(
       (r) => typeof r.selfie_quality_score === 'number'
     );
@@ -168,7 +209,20 @@ export const dashboardRepository = {
           r.selfie_quality_score < 60) ||
         (Array.isArray(r.selfie_issues) && r.selfie_issues.length > 0)
     ).length;
-    const noSelfie = rows.filter((r) => !r.selfie_url).length;
+
+    // Scheduled + not on leave + no check-in/selfie yet.
+    const checkedIn = new Set(
+      rows
+        .filter((r) => r.time_in || r.selfie_url)
+        .map((r) => r.user_id)
+        .filter(Boolean)
+    );
+    const scheduled = new Set(
+      (shiftsRes.data ?? []).map((s) => s.user_id).filter(Boolean)
+    );
+    const noSelfie = [...scheduled].filter(
+      (userId) => !leaveToday.has(userId) && !checkedIn.has(userId)
+    ).length;
 
     return { avg, flagged, noSelfie, total: rows.length };
   },
@@ -183,23 +237,28 @@ export const dashboardRepository = {
     return count ?? 0;
   },
 
-  /** Upcoming shifts (from the shifts table if it exists) */
-  async fetchUpcomingShifts(limit = 3) {
-    try {
-      const now = new Date();
-      const { data, error } = await supabase
+  /**
+   * Today's shifts, ordered by start time.
+   *
+   * The `shifts` table stores `shift_date` plus integer `start_hour`/`end_hour`
+   * (not timestamps), so filter on the Manila business date and sort by hour.
+   */
+  async fetchUpcomingShifts(limit = 5) {
+    const today = todayStr();
+    const [shiftsRes, onLeave] = await Promise.all([
+      supabase
         .from('shifts')
-        .select('id, user_id, start_time, end_time, date')
-        .eq('date', todayStr())
-        .gte('start_time', now.toISOString())
-        .order('start_time', { ascending: true })
-        .limit(limit);
-      if (error) return [];
-      if (!data || data.length === 0) return [];
-      return enrichWithProfiles(data);
-    } catch (e) {
-      return [];
-    }
+        .select('id, user_id, shift_date, name, kind, start_hour, end_hour, is_flexible')
+        .eq('shift_date', today)
+        .order('start_hour', { ascending: true }),
+      fetchOnLeaveUserIds(today),
+    ]);
+    const { data, error } = shiftsRes;
+    if (error) throw error;
+    // Leave replaces the shift — don't list employees who are not expected to work.
+    const visible = (data ?? []).filter((s) => !onLeave.has(s.user_id));
+    if (visible.length === 0) return [];
+    return enrichWithProfiles(visible.slice(0, limit));
   },
 };
 

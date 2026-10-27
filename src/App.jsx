@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from './core/hooks/useAuth';
 import { supabase } from './core/config/supabase';
 import LoginPage from './features/auth/presentation/LoginPage';
+import ResetPasswordPage from './features/auth/presentation/ResetPasswordPage';
 import AppShell from './shared/components/AppShell';
 import ErrorBoundary from './shared/components/ErrorBoundary';
 import DashboardPage from './features/dashboard/presentation/DashboardPage';
@@ -14,6 +15,7 @@ import ShiftsAdminPage from './features/shifts/presentation/ShiftsAdminPage';
 import EmployeesPage from './features/employees/presentation/EmployeesPage';
 import EmployeeDetailPage from './features/employees/presentation/EmployeeDetailPage';
 import PayrollAdminPage from './features/payroll/presentation/PayrollAdminPage';
+import PasswordResetsPage from './features/passwordResets/presentation/PasswordResetsPage';
 
 // 👈 Import changed from './shared/widgets/PageLoader' to './shared/components/PageLoader'
 import PageLoader from './shared/components/PageLoader';
@@ -72,6 +74,16 @@ export default function App() {
     return () => { cancelled = true; };
   }, [adminCheck]);
 
+  // Password recovery has to be reachable without an admin session: the
+  // recovery link itself creates a short-lived session when it is opened.
+  if (location.pathname === '/reset-password') {
+    return (
+      <ErrorBoundary key={location.pathname}>
+        <ResetPasswordPage />
+      </ErrorBoundary>
+    );
+  }
+
   // 👈 Using PageLoader with fullScreen and custom text
   let content;
   if (loading) content = <PageLoader text="Connecting to Media Box" fullScreen />;
@@ -90,9 +102,11 @@ export default function App() {
           <Route path="/records"    element={<AttendanceAllPage />} />
           <Route path="/tasks"      element={<TasksPage />} />
           <Route path="/shifts"     element={<ShiftsAdminPage />} />
+          <Route path="/leave"      element={<ShiftsAdminPage />} />
           <Route path="/employees"  element={<EmployeesPage />} />
           <Route path="/employees/:id" element={<EmployeeDetailPage />} />
           <Route path="/payroll"    element={<PayrollAdminPage />} />
+          <Route path="/password-resets" element={<PasswordResetsPage />} />
         </Route>
       </Routes>
     );

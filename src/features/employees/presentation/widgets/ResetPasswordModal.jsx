@@ -74,7 +74,7 @@ export default function ResetPasswordModal({ open, employee, onClose, onSaved })
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] animate-[slideUp_220ms_ease-out]"
+        className="w-full max-w-md overflow-hidden rounded-3xl border border-white/60 bg-white shadow-float animate-[slideUp_220ms_ease-out]"
       >
         {/* ─── Header with gradient band ─── */}
         <div className="relative px-6 pt-6 pb-5 border-b border-border/60">

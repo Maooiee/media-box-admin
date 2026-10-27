@@ -2,7 +2,6 @@
 import { Pencil } from 'lucide-react';
 import { formatTime } from '../../../../core/utils/formatters';
 import { employeeDetailRepository } from '../../data/employeeDetailRepository';
-import { attendanceRepository } from '../../../attendance/data/attendanceRepository';
 import EditAttendanceModal from '../../../attendance/presentation/widgets/EditAttendanceModal';
 
 export default function AttendanceTable({ records, onChanged }) {
@@ -27,7 +26,7 @@ export default function AttendanceTable({ records, onChanged }) {
 
   return (
     <>
-      <div className="bg-white rounded-2xl shadow-sm border border-border overflow-hidden">
+      <div className="surface-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-bg text-textLight text-xs uppercase tracking-wider">

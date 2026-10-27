@@ -2,13 +2,11 @@
 import { useState } from 'react';
 import {
   Calendar,
-  User as UserIcon,
   FileText,
   Paperclip,
   Check,
   X,
 } from 'lucide-react';
-import { leaveAdminRepository } from '../../data/leaveAdminRepository';
 
 const STATUS_STYLE = {
   pending: 'bg-amber-50 text-amber-700 border-amber-200',
@@ -40,10 +38,10 @@ export default function LeaveRequestCard({
   const isPending = request.status === 'pending';
 
   return (
-    <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
+    <div className="surface-card surface-card-hover overflow-hidden">
       {/* Header */}
-      <div className="flex items-start gap-3 p-4 border-b border-border">
-        <div className="w-11 h-11 rounded-full bg-primary-light flex items-center justify-center text-primary font-bold text-sm shrink-0">
+      <div className="flex items-start gap-3 border-b border-border/70 bg-gradient-to-r from-primary-light/25 via-white to-white p-4">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-sm font-bold text-primary shadow-sm ring-1 ring-primary/10">
           {request.employeeName?.[0]?.toUpperCase() ?? '?'}
         </div>
         <div className="flex-1 min-w-0">

@@ -2,9 +2,12 @@
 import { ChevronLeft, ChevronRight, Calendar as CalIcon, List } from 'lucide-react';
 import { shiftsAdminRepository } from '../../../shifts/data/shiftsAdminRepository';
 import { createShift, SHIFT_KINDS, kindDot } from '../../../shifts/domain/Shift';
+import { toLocalDate } from '../../../../core/utils/formatters';
 import CalendarGrid from '../../../shifts/presentation/widgets/CalendarGrid';
 import WeekView from '../../../shifts/presentation/widgets/WeekView';
 import EditShiftModal from '../../../shifts/presentation/widgets/EditShiftModal';
+import Toast from '../../../../shared/components/Toast';
+import { Skeleton } from '../../../../shared/components/Skeleton';
 
 const VIEWS = [
   { key: 'month', label: 'Month', icon: CalIcon },
@@ -17,6 +20,12 @@ export default function EmployeeScheduleTab({ employee }) {
   const [shifts, setShifts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingShift, setEditingShift] = useState(null);
+  const [toast, setToast] = useState(null);
+
+  function showToast(message, type = 'error') {
+    setToast({ message, type });
+    window.setTimeout(() => setToast(null), 2800);
+  }
 
   useEffect(() => {
     if (employee?.id) loadShifts();
@@ -27,16 +36,16 @@ export default function EmployeeScheduleTab({ employee }) {
       const y = cursor.getFullYear();
       const m = cursor.getMonth();
       return {
-        from: new Date(y, m, 1).toISOString().slice(0, 10),
-        to: new Date(y, m + 1, 0).toISOString().slice(0, 10),
+        from: toLocalDate(new Date(y, m, 1)),
+        to: toLocalDate(new Date(y, m + 1, 0)),
       };
     }
     const weekStart = startOfWeek(cursor);
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekEnd.getDate() + 6);
     return {
-      from: weekStart.toISOString().slice(0, 10),
-      to: weekEnd.toISOString().slice(0, 10),
+      from: toLocalDate(weekStart),
+      to: toLocalDate(weekEnd),
     };
   }
 
@@ -74,7 +83,7 @@ export default function EmployeeScheduleTab({ employee }) {
   }
 
   async function handleAssign(date, kindConfig) {
-    const dateStr = date.toISOString().slice(0, 10);
+    const dateStr = toLocalDate(date);
     try {
       await shiftsAdminRepository.upsertShift({
         userId: employee.id,
@@ -88,7 +97,7 @@ export default function EmployeeScheduleTab({ employee }) {
       loadShifts();
     } catch (e) {
       console.error(e);
-      alert('Failed to save shift: ' + e.message);
+      showToast('Failed to save shift: ' + (e.message || 'unknown error'));
     }
   }
 
@@ -126,7 +135,7 @@ export default function EmployeeScheduleTab({ employee }) {
   return (
     <div className="space-y-4">
       {/* Toolbar */}
-      <div className="bg-white rounded-2xl p-3 border border-border shadow-sm flex items-center justify-between flex-wrap gap-3">
+      <div className="surface-toolbar flex flex-wrap items-center justify-between gap-3 p-3">
         <div className="flex items-center gap-2">
           <button
             onClick={prev}
@@ -189,7 +198,7 @@ export default function EmployeeScheduleTab({ employee }) {
 
       {/* Calendar */}
       {loading ? (
-        <div className="text-center py-20 text-textLight">Loading...</div>
+        <Skeleton className="h-[420px] w-full" rounded="rounded-2xl" />
       ) : view === 'month' ? (
         <CalendarGrid
           monthDate={cursor}
@@ -212,6 +221,8 @@ export default function EmployeeScheduleTab({ employee }) {
         onClose={() => setEditingShift(null)}
         onSaved={loadShifts}
       />
+
+      <Toast message={toast?.message} type={toast?.type} />
     </div>
   );
 }

@@ -1,6 +1,26 @@
 import { useState } from 'react';
-import { X, UserPlus, Copy, Check, Mail, BadgeCheck, Briefcase, Calendar, Wallet } from 'lucide-react';
+import {
+  X, UserPlus, Copy, Check, Mail, BadgeCheck, Briefcase, Calendar, Wallet,
+  ChevronDown, Building2, Landmark, ShieldCheck,
+} from 'lucide-react';
 import { employeesRepository } from '../../data/employeesRepository';
+
+const REST_DAYS = [
+  { value: '', label: 'No fixed rest day' },
+  { value: '0', label: 'Sunday' },
+  { value: '1', label: 'Monday' },
+  { value: '2', label: 'Tuesday' },
+  { value: '3', label: 'Wednesday' },
+  { value: '4', label: 'Thursday' },
+  { value: '5', label: 'Friday' },
+  { value: '6', label: 'Saturday' },
+];
+
+const PAYROLL_ROLES = [
+  { value: '', label: 'Inherit admin access' },
+  { value: 'viewer', label: 'Viewer (read-only)' },
+  { value: 'admin', label: 'Payroll admin' },
+];
 
 export default function AddEmployeeModal({ open, onClose, onCreated }) {
   const [fullName, setFullName] = useState('');
@@ -10,6 +30,17 @@ export default function AddEmployeeModal({ open, onClose, onCreated }) {
   const [schedule, setSchedule] = useState('');
   const [dailyRate, setDailyRate] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
+  const [department, setDepartment] = useState('');
+  const [restDay, setRestDay] = useState('');
+  const [bankName, setBankName] = useState('');
+  const [bankAccountName, setBankAccountName] = useState('');
+  const [bankAccountNumber, setBankAccountNumber] = useState('');
+  const [sssNumber, setSssNumber] = useState('');
+  const [philhealthNumber, setPhilhealthNumber] = useState('');
+  const [pagibigNumber, setPagibigNumber] = useState('');
+  const [tin, setTin] = useState('');
+  const [payrollRole, setPayrollRole] = useState('');
+  const [showPayroll, setShowPayroll] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(null);
@@ -51,6 +82,16 @@ export default function AddEmployeeModal({ open, onClose, onCreated }) {
         schedule: schedule.trim(),
         isAdmin,
         dailyRate: rateValue,
+        department: department.trim() || null,
+        restDay: restDay === '' ? null : Number(restDay),
+        bankName: bankName.trim() || null,
+        bankAccountName: bankAccountName.trim() || null,
+        bankAccountNumber: bankAccountNumber.trim() || null,
+        sssNumber: sssNumber.trim() || null,
+        philhealthNumber: philhealthNumber.trim() || null,
+        pagibigNumber: pagibigNumber.trim() || null,
+        tin: tin.trim() || null,
+        payrollRole: payrollRole || null,
       });
 
       setSuccess({ email: email.trim(), password });
@@ -79,6 +120,17 @@ export default function AddEmployeeModal({ open, onClose, onCreated }) {
     setSchedule('');
     setDailyRate('');
     setIsAdmin(false);
+    setDepartment('');
+    setRestDay('');
+    setBankName('');
+    setBankAccountName('');
+    setBankAccountNumber('');
+    setSssNumber('');
+    setPhilhealthNumber('');
+    setPagibigNumber('');
+    setTin('');
+    setPayrollRole('');
+    setShowPayroll(false);
     setError('');
     setSuccess(null);
     setCopied(false);
@@ -94,7 +146,7 @@ export default function AddEmployeeModal({ open, onClose, onCreated }) {
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] animate-[slideUp_220ms_ease-out]"
+        className="w-full max-w-md overflow-hidden rounded-3xl border border-white/60 bg-white shadow-float animate-[slideUp_220ms_ease-out]"
       >
         {/* ─── Header with gradient band ─── */}
         <div className="relative px-6 pt-6 pb-5 border-b border-border/60">
@@ -231,6 +283,144 @@ export default function AddEmployeeModal({ open, onClose, onCreated }) {
                   className="w-full bg-transparent outline-none text-sm text-textDark placeholder:text-textLight"
                 />
               </ModernField>
+
+              {/* Optional payroll profile */}
+              <button
+                type="button"
+                onClick={() => setShowPayroll((v) => !v)}
+                className="flex w-full items-center gap-2 rounded-2xl border border-border bg-bg px-4 py-3 text-left transition hover:border-primary/30"
+              >
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white text-primary shadow-sm">
+                  <Building2 size={14} />
+                </span>
+                <span className="flex-1">
+                  <span className="block text-sm font-semibold text-textDark">
+                    Payroll profile (optional)
+                  </span>
+                  <span className="block text-[11px] text-textLight">
+                    Department, rest day, bank details, government IDs
+                  </span>
+                </span>
+                <ChevronDown
+                  size={15}
+                  className={`text-textLight transition-transform ${showPayroll ? 'rotate-180' : ''}`}
+                />
+              </button>
+
+              {showPayroll && (
+                <div className="space-y-3 rounded-2xl border border-border bg-bg/40 p-3">
+                  <SectionLabel>
+                    <Building2 size={11} /> Work profile
+                  </SectionLabel>
+                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                    <ModernField label="Department" icon={<Building2 size={13} />}>
+                      <input
+                        type="text"
+                        value={department}
+                        onChange={(e) => setDepartment(e.target.value)}
+                        placeholder="Operations"
+                        className="w-full bg-transparent outline-none text-sm text-textDark placeholder:text-textLight"
+                      />
+                    </ModernField>
+                    <ModernField label="Rest day" icon={<Calendar size={13} />}>
+                      <select
+                        value={restDay}
+                        onChange={(e) => setRestDay(e.target.value)}
+                        className="w-full bg-transparent outline-none text-sm text-textDark"
+                      >
+                        {REST_DAYS.map((d) => (
+                          <option key={d.value} value={d.value}>
+                            {d.label}
+                          </option>
+                        ))}
+                      </select>
+                    </ModernField>
+                  </div>
+
+                  <SectionLabel>
+                    <ShieldCheck size={11} /> Payroll access
+                  </SectionLabel>
+                  <ModernField label="Payroll role" icon={<ShieldCheck size={13} />}>
+                    <select
+                      value={payrollRole}
+                      onChange={(e) => setPayrollRole(e.target.value)}
+                      className="w-full bg-transparent outline-none text-sm text-textDark"
+                    >
+                      {PAYROLL_ROLES.map((r) => (
+                        <option key={r.value} value={r.value}>
+                          {r.label}
+                        </option>
+                      ))}
+                    </select>
+                  </ModernField>
+
+                  <SectionLabel>
+                    <Landmark size={11} /> Bank & government IDs
+                  </SectionLabel>
+                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                    <ModernField label="Bank name" icon={<Landmark size={13} />}>
+                      <input
+                        type="text"
+                        value={bankName}
+                        onChange={(e) => setBankName(e.target.value)}
+                        placeholder="BDO / BPI / GCash"
+                        className="w-full bg-transparent outline-none text-sm text-textDark placeholder:text-textLight"
+                      />
+                    </ModernField>
+                    <ModernField label="Account name" icon={<Landmark size={13} />}>
+                      <input
+                        type="text"
+                        value={bankAccountName}
+                        onChange={(e) => setBankAccountName(e.target.value)}
+                        placeholder="As printed on the account"
+                        className="w-full bg-transparent outline-none text-sm text-textDark placeholder:text-textLight"
+                      />
+                    </ModernField>
+                    <ModernField label="Account number" icon={<Landmark size={13} />}>
+                      <input
+                        type="text"
+                        value={bankAccountNumber}
+                        onChange={(e) => setBankAccountNumber(e.target.value)}
+                        placeholder="0000 0000 0000"
+                        className="w-full bg-transparent outline-none text-sm text-textDark placeholder:text-textLight"
+                      />
+                    </ModernField>
+                    <ModernField label="TIN" icon={<BadgeCheck size={13} />}>
+                      <input
+                        type="text"
+                        value={tin}
+                        onChange={(e) => setTin(e.target.value)}
+                        placeholder="000-000-000-000"
+                        className="w-full bg-transparent outline-none text-sm text-textDark placeholder:text-textLight"
+                      />
+                    </ModernField>
+                    <ModernField label="SSS number" icon={<BadgeCheck size={13} />}>
+                      <input
+                        type="text"
+                        value={sssNumber}
+                        onChange={(e) => setSssNumber(e.target.value)}
+                        className="w-full bg-transparent outline-none text-sm text-textDark placeholder:text-textLight"
+                      />
+                    </ModernField>
+                    <ModernField label="PhilHealth number" icon={<BadgeCheck size={13} />}>
+                      <input
+                        type="text"
+                        value={philhealthNumber}
+                        onChange={(e) => setPhilhealthNumber(e.target.value)}
+                        className="w-full bg-transparent outline-none text-sm text-textDark placeholder:text-textLight"
+                      />
+                    </ModernField>
+                    <ModernField label="Pag-IBIG number" icon={<BadgeCheck size={13} />}>
+                      <input
+                        type="text"
+                        value={pagibigNumber}
+                        onChange={(e) => setPagibigNumber(e.target.value)}
+                        className="w-full bg-transparent outline-none text-sm text-textDark placeholder:text-textLight"
+                      />
+                    </ModernField>
+                  </div>
+                </div>
+              )}
 
               {/* Admin toggle */}
               <button

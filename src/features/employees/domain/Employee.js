@@ -11,5 +11,15 @@
     joinedDate: raw.joined_date,
     avatarUrl: raw.avatar_url,
     dailyRate: raw.daily_rate != null ? Number(raw.daily_rate) : null,
+    department: raw.department ?? '',
+    restDay: raw.rest_day != null ? Number(raw.rest_day) : null,
+    bankName: raw.bank_name ?? '',
+    bankAccountName: raw.bank_account_name ?? '',
+    bankAccountNumber: raw.bank_account_number ?? '',
+    sssNumber: raw.sss_number ?? '',
+    philhealthNumber: raw.philhealth_number ?? '',
+    pagibigNumber: raw.pagibig_number ?? '',
+    tin: raw.tin ?? '',
+    payrollRole: raw.payroll_role ?? '',
   };
 }

@@ -1,7 +1,7 @@
 ﻿import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, Lock } from 'lucide-react';
-import { SHIFT_KINDS, kindStyle, kindDot } from '../../domain/Shift';
+import { SHIFT_KINDS, kindStyle } from '../../domain/Shift';
 import { initials } from '../../../../core/utils/formatters';
 
 const HOLD_MS = 400;
@@ -175,7 +175,7 @@ export default function ExpandableDayCell({
               w-[min(340px,calc(100vw-2rem))]
               max-h-[min(80vh,520px)]
               p-4
-              rounded-2xl bg-white border-2 border-primary shadow-2xl
+              rounded-2xl bg-white border border-primary/40 shadow-float
               overflow-y-auto
             "
           >

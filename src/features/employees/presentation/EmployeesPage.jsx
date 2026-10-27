@@ -2,13 +2,17 @@
 import { useNavigate } from 'react-router-dom';
 import {
   ChevronRight, Mail, Briefcase, Calendar, BadgeCheck,
-  Plus, Search, Edit3, Power, Users, KeyRound,
+  Plus, Edit3, Power, Users, KeyRound,
 } from 'lucide-react';
 import { employeesRepository } from '../data/employeesRepository';
 import { createEmployee } from '../domain/Employee';
-import { initials } from '../../../core/utils/formatters';
+import { daysAgoManila, initials } from '../../../core/utils/formatters';
 import { supabase } from '../../../core/config/supabase';
 import PageHeader from '../../../shared/components/PageHeader';
+import SearchField from '../../../shared/components/SearchField';
+import FilterChips from '../../../shared/components/FilterChips';
+import EmptyState from '../../../shared/components/EmptyState';
+import { SkeletonGrid } from '../../../shared/components/Skeleton';
 import AddEmployeeModal from './widgets/AddEmployeeModal';
 import EditEmployeeModal from './widgets/EditEmployeeModal';
 import ResetPasswordModal from './widgets/ResetPasswordModal';
@@ -40,9 +44,7 @@ export default function EmployeesPage() {
       const raw = await employeesRepository.fetchAll();
       setEmployees(raw.map(createEmployee));
 
-      const since = new Date();
-      since.setDate(since.getDate() - 30);
-      const sinceStr = since.toISOString().slice(0, 10);
+      const sinceStr = daysAgoManila(30);
 
       const { data: records, error } = await supabase
         .from('attendance_records')
@@ -129,61 +131,34 @@ export default function EmployeesPage() {
       />
 
       {/* Search & filters */}
-      <div className="rounded-2xl bg-gradient-to-r from-white via-white to-primary-light/20 border border-border shadow-card p-2.5 md:p-3 space-y-2.5 md:space-y-0 md:flex md:flex-row md:gap-3 md:items-center">
-        {/* Search — full width on mobile */}
-        <div className="flex items-center gap-2 px-3 py-2 md:py-2 rounded-xl border border-border bg-white focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15 transition md:flex-1">
-          <Search size={14} className="text-textLight shrink-0" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search employees…"
-            className="flex-1 min-w-0 bg-transparent outline-none text-sm text-textDark placeholder:text-textLight"
-          />
-          {search && (
-            <button
-              onClick={() => setSearch('')}
-              className="text-[10px] font-bold text-textLight hover:text-primary transition shrink-0"
-            >
-              CLEAR
-            </button>
-          )}
-        </div>
+      <div className="surface-toolbar space-y-2.5 p-2.5 md:flex md:flex-row md:items-center md:gap-3 md:space-y-0 md:p-3">
+        <SearchField
+          value={search}
+          onChange={setSearch}
+          placeholder="Search employees…"
+          className="md:flex-1"
+        />
 
-        {/* Filter chips — horizontal scroll on mobile */}
-        <div className="-mx-2.5 px-2.5 md:mx-0 md:px-0 overflow-x-auto md:overflow-visible">
-          <div className="flex gap-1.5 md:gap-2 w-max md:w-auto">
-            {FILTERS.map((f) => (
-              <button
-                key={f.key}
-                onClick={() => setFilter(f.key)}
-                className={`inline-flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-full text-[11px] md:text-xs font-semibold transition whitespace-nowrap ${
-                  filter === f.key
-                    ? 'bg-gradient-to-br from-primary to-primary-dark text-white shadow-md shadow-primary/30'
-                    : 'bg-white text-textMedium border border-border hover:border-primary/40 hover:bg-primary-light/20'
-                }`}
-              >
-                {f.label}
-                <span
-                  className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[16px] md:min-w-[18px] text-center ${
-                    filter === f.key ? 'bg-white/25 text-white' : 'bg-bg text-textLight'
-                  }`}
-                >
-                  {counts[f.key]}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
+        <FilterChips
+          options={FILTERS.map((f) => ({ ...f, count: counts[f.key] }))}
+          value={filter}
+          onChange={setFilter}
+        />
       </div>
 
       {/* Grid */}
       {loading ? (
-        <div className="text-center py-20 text-textLight text-sm">Loading...</div>
+        <SkeletonGrid count={6} />
       ) : visible.length === 0 ? (
-        <div className="text-center py-20 text-textLight text-sm">
-          {search || filter !== 'all' ? 'No matching employees' : 'No employees yet'}
-        </div>
+        <EmptyState
+          icon={Users}
+          title={search || filter !== 'all' ? 'No matching employees' : 'No employees yet'}
+          description={
+            search || filter !== 'all'
+              ? 'Try a different search or filter.'
+              : 'Add your first team member to get started.'
+          }
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-5">
           {visible.map((e) => {
@@ -338,6 +313,7 @@ export default function EmployeesPage() {
           open={!!editing}
           employee={editing}
           onClose={() => setEditing(null)}
+          onToast={showToast}
           onSaved={() => {
             showToast('Employee updated');
             loadAll();

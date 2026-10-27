@@ -13,6 +13,8 @@ import {
 import { qrRepository } from '../data/qrRepository';
 import { createQrCode } from '../domain/QrCode';
 import { formatPH } from '../../../core/utils/formatters';
+import PageHeader from '../../../shared/components/PageHeader';
+import { Skeleton } from '../../../shared/components/Skeleton';
 
 export default function QrCodePage() {
   const [qr, setQr] = useState(null);
@@ -78,28 +80,25 @@ export default function QrCodePage() {
   return (
     <div className="max-w-2xl mx-auto space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h2 className="text-3xl font-bold text-textDark tracking-tight flex items-center gap-2">
-            <Sparkles size={22} className="text-primary" />
-            Today's Check-In QR
-          </h2>
-          <p className="text-sm text-textLight mt-1">
-            Show this to employees · It refreshes at midnight
-          </p>
-        </div>
-        <button
-          onClick={loadCode}
-          disabled={loading}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold bg-white border border-border text-textMedium hover:border-primary hover:text-primary transition disabled:opacity-50"
-        >
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-          Refresh
-        </button>
-      </div>
+      <PageHeader
+        section="Check-in"
+        title="Today's Check-In QR"
+        subtitle="Show this to employees · It refreshes at midnight"
+        icon={Sparkles}
+        action={
+          <button
+            onClick={loadCode}
+            disabled={loading}
+            className="inline-flex items-center gap-2 rounded-full border border-border bg-white px-4 py-2.5 text-sm font-semibold text-textMedium transition hover:border-primary hover:text-primary disabled:opacity-50"
+          >
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            Refresh
+          </button>
+        }
+      />
 
       {/* Main QR card */}
-      <div className="relative overflow-hidden bg-white rounded-3xl border border-border shadow-sm">
+      <div className="surface-card relative overflow-hidden rounded-3xl">
         {/* Soft orange glow */}
         <div
           className="absolute -top-24 left-1/2 -translate-x-1/2 w-[500px] h-[300px] rounded-full pointer-events-none opacity-50"
@@ -111,17 +110,17 @@ export default function QrCodePage() {
 
         <div className="relative p-8 flex flex-col items-center">
           {loading ? (
-            <div className="py-24 flex flex-col items-center gap-3">
-              <div className="w-10 h-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
-              <p className="text-sm text-textLight">Loading code…</p>
+            <div className="flex flex-col items-center gap-4 py-16">
+              <Skeleton className="h-64 w-64" rounded="rounded-3xl" />
+              <Skeleton className="h-3 w-40" />
             </div>
           ) : qr ? (
             <>
               {/* Live status pill */}
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-bold uppercase tracking-wider mb-6">
+              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-green/30 bg-greenLight px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-green">
                 <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-green" />
                 </span>
                 Active
               </div>
@@ -198,9 +197,9 @@ export default function QrCodePage() {
       {qr && !loading && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Valid until */}
-          <div className="bg-white rounded-2xl border border-border shadow-sm p-5 relative overflow-hidden">
+          <div className="surface-card surface-card-hover relative overflow-hidden p-5">
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blueLight text-blue">
                 <ShieldCheck size={18} />
               </div>
               <div className="flex-1">
@@ -227,9 +226,9 @@ export default function QrCodePage() {
           </div>
 
           {/* Refreshes in */}
-          <div className="bg-white rounded-2xl border border-border shadow-sm p-5 relative overflow-hidden">
+          <div className="surface-card surface-card-hover relative overflow-hidden p-5">
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl bg-orange-50 text-primary flex items-center justify-center shrink-0">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-light text-primary">
                 <Clock size={18} />
               </div>
               <div className="flex-1">
@@ -253,11 +252,11 @@ export default function QrCodePage() {
       )}
 
       {/* Security tip */}
-      <div className="bg-amber-50/60 border border-amber-200/70 rounded-2xl p-4 flex items-start gap-3">
-        <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+      <div className="flex items-start gap-3 rounded-2xl border border-yellow/30 bg-yellowLight/60 p-4">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/70 text-yellow">
           <Lock size={16} />
         </div>
-        <div className="flex-1 text-xs text-amber-800 leading-relaxed">
+        <div className="flex-1 text-xs leading-relaxed text-textMedium">
           <p className="font-bold mb-1">Security tip</p>
           <p>
             This QR expires at midnight. Only display it inside the store on a

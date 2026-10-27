@@ -6,6 +6,7 @@ import DatePicker from '../../../../shared/components/DatePicker';
 import { shiftsAdminRepository } from '../../data/shiftsAdminRepository';
 import { employeesRepository } from '../../../employees/data/employeesRepository';
 import { SHIFT_KINDS } from '../../domain/Shift';
+import { toManilaDate } from '../../../../core/utils/formatters';
 
 export default function EditShiftModal({ open, shift, onClose, onSaved }) {
   const [userId, setUserId] = useState('');
@@ -44,7 +45,7 @@ export default function EditShiftModal({ open, shift, onClose, onSaved }) {
       setIsFlexible(shift.isFlexible ?? false);
     } else {
       setUserId('');
-      setShiftDate(shift?.shiftDate ?? new Date().toISOString().slice(0, 10));
+      setShiftDate(shift?.shiftDate ?? toManilaDate());
       setName('Morning Shift');
       setKind('morning');
       setStartHour(8);

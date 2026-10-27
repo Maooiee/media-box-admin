@@ -1,4 +1,5 @@
 ﻿import { supabase } from '../../../core/config/supabase';
+import { daysAgoManila } from '../../../core/utils/formatters';
 
 export const employeeDetailRepository = {
   async fetchEmployee(id) {
@@ -13,9 +14,7 @@ export const employeeDetailRepository = {
   },
 
   async fetchRecentAttendance(userId, days = 30) {
-    const since = new Date();
-    since.setDate(since.getDate() - days);
-    const sinceStr = since.toISOString().slice(0, 10);
+    const sinceStr = daysAgoManila(days);
 
     const { data, error } = await supabase
       .from('attendance_records')

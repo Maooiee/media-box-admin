@@ -41,7 +41,7 @@ export default function QuickShiftPicker({
       onClick={onClose}
     >
       <div
-        className="w-full md:max-w-md bg-white rounded-t-3xl md:rounded-3xl shadow-2xl overflow-hidden animate-[slideUp_200ms_ease-out]"
+        className="w-full overflow-hidden rounded-t-3xl border border-white/60 bg-white shadow-float md:max-w-md md:rounded-3xl animate-[slideUp_200ms_ease-out]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Drag handle (mobile) */}

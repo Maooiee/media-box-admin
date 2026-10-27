@@ -231,6 +231,8 @@ serve(async (req) => {
     const actual = timeIn.toLocaleTimeString('en-PH', {
       hour: '2-digit',
       minute: '2-digit',
+      // Edge Functions run in UTC; the business runs on Asia/Manila.
+      timeZone: 'Asia/Manila',
     });
 
     const body = startHour != null

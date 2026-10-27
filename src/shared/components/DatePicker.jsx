@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
+import { toManilaDate } from '../../core/utils/formatters';
 
 const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
@@ -109,15 +110,11 @@ export default function DatePicker({ value, onChange, placeholder = "Select date
 
   const handleToday = (e) => {
     e.stopPropagation();
-    const today = new Date();
-    const y = today.getFullYear();
-    const m = String(today.getMonth() + 1).padStart(2, '0');
-    const d = String(today.getDate()).padStart(2, '0');
-    onChange(`${y}-${m}-${d}`);
+    onChange(toManilaDate());
     setOpen(false);
   };
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = toManilaDate();
 
   const displayValue = value
     ? new Date(value + 'T00:00:00').toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -129,12 +126,12 @@ export default function DatePicker({ value, onChange, placeholder = "Select date
         ref={buttonRef}
         type="button"
         onClick={() => setOpen(!open)}
-        className={`flex items-center justify-between gap-2 px-3 py-1.5 md:py-2 rounded-xl border text-[11px] md:text-xs font-semibold transition w-full ${
+        className={`flex w-full items-center justify-between gap-2 rounded-xl border px-3 py-1.5 text-[11px] font-semibold transition duration-200 md:py-2 md:text-xs ${
           open
-            ? 'bg-white border-primary ring-2 ring-primary/20'
+            ? 'border-primary bg-white ring-4 ring-primary/10'
             : value
-            ? 'bg-primary-light/20 border-primary/30 text-primary'
-            : 'bg-white border-border text-textMedium hover:border-primary/40 hover:bg-primary-light/10'
+            ? 'border-primary/30 bg-primary-light/20 text-primary'
+            : 'border-border bg-white text-textMedium hover:border-primary/40 hover:bg-primary-light/10'
         }`}
       >
         <div className="flex items-center gap-2">
@@ -148,7 +145,7 @@ export default function DatePicker({ value, onChange, placeholder = "Select date
           ref={popupRef}
           style={{ top: coords.top, left: coords.left }}
           // 🛠️ FIX: Use fixed positioning so it's relative to the screen, not the scrolled page
-          className="fixed z-[9999] bg-white rounded-2xl border border-border shadow-xl p-4 w-64 animate-[slideUp_200ms_ease-out]"
+          className="fixed z-[9999] w-64 rounded-2xl border border-border bg-white p-4 shadow-float animate-[slideUp_200ms_ease-out]"
         >
           <div className="flex items-center justify-between mb-4">
             <button

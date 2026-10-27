@@ -353,8 +353,8 @@ export default function LoginPage() {
                   <div className="p-4 rounded-2xl bg-greenLight border border-green/25 text-green text-xs font-semibold flex items-start gap-2.5 animate-[fadeUp_200ms_ease-out]">
                     <CircleCheck size={17} className="mt-0.5 shrink-0" />
                     <span className="leading-relaxed">
-                      Reset link sent to <b>{email}</b>. Check your inbox — the link expires
-                      shortly.
+                      If <b>{email}</b> has an admin account, a reset link is on its way.
+                      Check your inbox and spam folder. The link works once and expires shortly.
                     </span>
                   </div>
                 ) : (

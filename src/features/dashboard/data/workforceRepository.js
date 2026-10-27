@@ -4,13 +4,18 @@
 // No schema changes — uses attendance_records, shifts, profiles.
 
 import { supabase } from '../../../core/config/supabase';
+import {
+  manilaMinutes,
+  toManilaDate,
+} from '../../../core/utils/formatters';
+import { fetchOnLeaveUserIds } from '../../leave/data/leaveStatusRepository';
 
 const EMPTY = { onDuty: [], absent: [], onLeave: [], offDuty: [] };
 const GRACE_MINUTES = 60;
 
 export async function fetchWorkforceAvailability() {
-  const today = new Date();
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  // Business date must be Manila, not the device clock (UTC is 8h behind).
+  const todayStr = toManilaDate();
 
   try {
     const { data: profiles } = await supabase
@@ -20,15 +25,17 @@ export async function fetchWorkforceAvailability() {
 
     if (!profiles || profiles.length === 0) return EMPTY;
 
-    const { data: attendance } = await supabase
-      .from('attendance_records')
-      .select('user_id, time_in, time_out, status')
-      .eq('date', todayStr);
-
-    const { data: shifts } = await supabase
-      .from('shifts')
-      .select('user_id, name, start_hour, end_hour')
-      .eq('shift_date', todayStr);
+    const [{ data: attendance }, { data: shifts }, onLeaveIds] = await Promise.all([
+      supabase
+        .from('attendance_records')
+        .select('user_id, time_in, time_out, status')
+        .eq('date', todayStr),
+      supabase
+        .from('shifts')
+        .select('user_id, name, start_hour, end_hour')
+        .eq('shift_date', todayStr),
+      fetchOnLeaveUserIds(todayStr),
+    ]);
 
     const attMap = Object.fromEntries(
       (attendance ?? []).map((r) => [r.user_id, r])
@@ -44,7 +51,8 @@ export async function fetchWorkforceAvailability() {
 
     const now = new Date();
     const nowMs = now.getTime();
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    // Wall-clock minutes in Asia/Manila — matches shifts.start_hour.
+    const currentMinutes = manilaMinutes(now);
 
     for (const p of profiles) {
       const att = attMap[p.id];
@@ -71,8 +79,10 @@ export async function fetchWorkforceAvailability() {
         continue;
       }
 
-      // 2. ON LEAVE
-      if (att?.status === 'on_leave') {
+      // 2. ON LEAVE — approved request OR materialised on_leave row.
+      //    Leave wins over "absent": an approved-leave employee is never
+      //    expected to check in.
+      if (onLeaveIds.has(p.id) || att?.status === 'on_leave') {
         onLeave.push(entry);
         continue;
       }

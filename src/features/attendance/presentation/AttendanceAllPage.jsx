@@ -1,15 +1,25 @@
 ﻿// admin-panel/src/features/attendance/presentation/AttendanceAllPage.jsx
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Search, Download, Users, Calendar, Inbox, Check, StickyNote } from 'lucide-react';
+import { Search, Download, Users, Calendar, Inbox, Check, StickyNote, Briefcase } from 'lucide-react';
 import { attendanceRepository } from '../data/attendanceRepository';
 import { createAttendanceRecord } from '../domain/AttendanceRecord';
-import { formatTime } from '../../../core/utils/formatters';
+import {
+  addDaysToDate,
+  formatTime,
+  toManilaDate,
+} from '../../../core/utils/formatters';
 import { exportAttendancePDF } from '../../../core/utils/pdfExport';
 import AttendanceRecordDrawer from './widgets/AttendanceRecordDrawer';
 import QuickNoteModal from './widgets/QuickNoteModal';
 
 // 👈 Import the new custom DatePicker
 import DatePicker from '../../../shared/components/DatePicker';
+import PageHeader from '../../../shared/components/PageHeader';
+import StatTile from '../../../shared/components/StatTile';
+import EmptyState from '../../../shared/components/EmptyState';
+import SearchField from '../../../shared/components/SearchField';
+import FilterChips from '../../../shared/components/FilterChips';
+import { SkeletonTable } from '../../../shared/components/Skeleton';
 
 const RANGES = [
   { key: 'today', label: 'Today' },
@@ -17,13 +27,6 @@ const RANGES = [
   { key: 'month', label: 'This Month' },
   { key: 'all',   label: 'All Time' },
 ];
-
-function toDateStr(d) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
 
 export default function AttendanceAllPage() {
   const [records, setRecords] = useState([]);
@@ -82,25 +85,19 @@ export default function AttendanceAllPage() {
   }
 
   function rangeDates() {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
     if (customFrom || customTo) {
       return { from: customFrom || null, to: customTo || null };
     }
 
+    const today = toManilaDate();
+
     switch (range) {
       case 'today':
-        return { from: toDateStr(today), to: toDateStr(today) };
-      case 'week': {
-        const weekAgo = new Date(today);
-        weekAgo.setDate(weekAgo.getDate() - 7);
-        return { from: toDateStr(weekAgo), to: toDateStr(today) };
-      }
-      case 'month': {
-        const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        return { from: toDateStr(firstOfMonth), to: toDateStr(today) };
-      }
+        return { from: today, to: today };
+      case 'week':
+        return { from: addDaysToDate(today, -7), to: today };
+      case 'month':
+        return { from: `${today.slice(0, 7)}-01`, to: today };
       case 'all':
       default:
         return { from: null, to: null };
@@ -130,8 +127,15 @@ export default function AttendanceAllPage() {
   }, [records, range, customFrom, customTo, search, filterEmployeeId, employees]);
 
   const stats = useMemo(() => {
-    const acc = { total: visible.length, present: 0, late: 0, absent: 0 };
+    const acc = { total: 0, present: 0, late: 0, absent: 0, onLeave: 0 };
     for (const r of visible) {
+      // Approved leave is not an attendance day — keep it out of the
+      // present/late/absent/total attendance statistics.
+      if (r.status === 'on_leave') {
+        acc.onLeave++;
+        continue;
+      }
+      acc.total++;
       if (r.status === 'present') acc.present++;
       else if (r.status === 'late') acc.late++;
       else if (r.status === 'absent') acc.absent++;
@@ -195,66 +199,49 @@ export default function AttendanceAllPage() {
 
   return (
     <div className="space-y-3 md:space-y-4">
-      {/* Header — responsive */}
-      <div className="flex items-start justify-between flex-wrap gap-3 md:gap-4">
-        <div className="flex items-start gap-3 min-w-0 flex-1">
-          <div className="w-10 h-10 md:w-11 md:h-11 rounded-xl bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center text-white shadow-brand shrink-0">
-            <Calendar size={18} />
-          </div>
-          <div className="min-w-0">
-            <h2 className="text-xl md:text-2xl font-bold text-textDark tracking-tight truncate">
-              Attendance Records
-            </h2>
-            <p className="text-[11px] md:text-xs text-textMedium mt-0.5 truncate">
-              View, filter, add notes, and export
-            </p>
-          </div>
-        </div>
+      {/* Header */}
+      <PageHeader
+        section="Attendance"
+        title="Attendance Records"
+        subtitle="View, filter, add notes, and export"
+        icon={Calendar}
+        action={
+          <button
+            onClick={handleExport}
+            disabled={exporting || visible.length === 0}
+            className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-br from-primary to-primary-dark px-3 py-2 text-xs font-semibold text-white shadow-lg shadow-primary/30 transition-all hover:-translate-y-0.5 hover:shadow-primary/50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 md:gap-2 md:px-4 md:text-sm"
+          >
+            <Download size={14} className="md:hidden" />
+            <Download size={15} className="hidden md:block" />
+            <span className="whitespace-nowrap">
+              {exporting ? 'Generating...' : 'Export'}
+            </span>
+          </button>
+        }
+      />
 
-        <button
-          onClick={handleExport}
-          disabled={exporting || visible.length === 0}
-          className="inline-flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 rounded-full bg-gradient-to-br from-primary to-primary-dark text-white font-semibold text-xs md:text-sm shadow-lg shadow-primary/30 hover:shadow-primary/50 hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:hover:translate-y-0 disabled:cursor-not-allowed shrink-0"
-        >
-          <Download size={14} className="md:hidden" />
-          <Download size={15} className="hidden md:block" />
-          <span className="whitespace-nowrap">{exporting ? 'Generating...' : 'Export'}</span>
-        </button>
-      </div>
-
-      {/* Stats — 2x2 on mobile, 4 across on desktop */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
+      {/* Stats — 2x2 on mobile, 5 across on desktop */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-2 md:gap-3">
         <StatTile label="Total" value={stats.total} tone="brand" icon={<Calendar size={13} />} />
         <StatTile label="Present" value={stats.present} tone="good" icon={<Check size={13} />} />
         <StatTile label="Late" value={stats.late} tone="warn" />
         <StatTile label="Absent" value={stats.absent} tone="bad" />
+        <StatTile label="On Leave" value={stats.onLeave} tone="info" icon={<Briefcase size={13} />} />
       </div>
 
       {/* Filters */}
-      <div className="rounded-2xl p-2.5 md:p-3 border border-border shadow-card bg-gradient-to-r from-white via-white to-primary-light/15 space-y-2.5 md:space-y-3">
+      <div className="surface-toolbar space-y-2.5 p-2.5 md:space-y-3 md:p-3">
         {/* Search + employee picker — full row each on mobile */}
-        <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
-          <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-border bg-white focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition md:flex-1">
-            <Search size={14} className="text-textLight shrink-0" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search name or ID…"
-              className="flex-1 min-w-0 bg-transparent outline-none text-sm text-textDark placeholder:text-textLight"
-            />
-            {search && (
-              <button
-                onClick={() => setSearch('')}
-                className="text-[10px] font-bold text-textLight hover:text-primary transition shrink-0"
-              >
-                CLEAR
-              </button>
-            )}
-          </div>
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
+          <SearchField
+            value={search}
+            onChange={setSearch}
+            placeholder="Search name or ID…"
+            className="md:flex-1"
+          />
 
           <div className="flex items-center gap-2">
-            <Users size={14} className="text-primary shrink-0" />
+            <Users size={14} className="shrink-0 text-primary" />
             <EmployeePicker
               employees={employees}
               value={filterEmployeeId}
@@ -264,37 +251,25 @@ export default function AttendanceAllPage() {
         </div>
 
         {/* Range chips + date range */}
-        <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
-          <div className="-mx-2.5 md:mx-0 px-2.5 md:px-0 overflow-x-auto md:overflow-visible">
-            <div className="flex gap-1.5 md:gap-2 w-max md:w-auto">
-              {RANGES.map((r) => (
-                <button
-                  key={r.key}
-                  onClick={() => {
-                    setRange(r.key);
-                    clearCustomRange();
-                  }}
-                  className={`px-3 md:px-4 py-1.5 md:py-2 rounded-full text-[11px] md:text-xs font-semibold transition whitespace-nowrap ${
-                    range === r.key && !customFrom && !customTo
-                      ? 'bg-gradient-to-br from-primary to-primary-dark text-white shadow-md shadow-primary/30'
-                      : 'bg-white text-textMedium border border-border hover:border-primary/40 hover:bg-primary-light/20 hover:text-textDark'
-                  }`}
-                >
-                  {r.label}
-                </button>
-              ))}
-            </div>
-          </div>
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
+          <FilterChips
+            options={RANGES}
+            value={customFrom || customTo ? '' : range}
+            onChange={(key) => {
+              setRange(key);
+              clearCustomRange();
+            }}
+          />
 
           {/* 👈 Replaced DatePill with custom DatePicker */}
           <div className="flex items-center gap-2 md:ml-auto">
-            <Calendar size={13} className="text-primary shrink-0 hidden md:block" />
+            <Calendar size={13} className="hidden shrink-0 text-primary md:block" />
             <DatePicker 
               value={customFrom} 
               onChange={setCustomFrom} 
               placeholder="From" 
             />
-            <span className="text-[10px] md:text-xs text-textLight">to</span>
+            <span className="text-[10px] text-textLight md:text-xs">to</span>
             <DatePicker 
               value={customTo} 
               onChange={setCustomTo} 
@@ -303,7 +278,7 @@ export default function AttendanceAllPage() {
             {(customFrom || customTo) && (
               <button
                 onClick={clearCustomRange}
-                className="text-[10px] font-bold text-primary hover:underline shrink-0 ml-1"
+                className="ml-1 shrink-0 text-[10px] font-bold text-primary hover:underline"
               >
                 CLEAR
               </button>
@@ -314,9 +289,17 @@ export default function AttendanceAllPage() {
 
       {/* Table / Cards */}
       {loading ? (
-        <div className="text-center py-20 text-textLight text-sm">Loading...</div>
+        <SkeletonTable rows={6} />
       ) : visible.length === 0 ? (
-        <EmptyState hasFilters={!!hasFilters} />
+        <EmptyState
+          icon={Inbox}
+          title={hasFilters ? 'No matching records' : 'No attendance records yet'}
+          description={
+            hasFilters
+              ? 'Try adjusting the filters or search term.'
+              : 'Records will appear here as employees start timing in.'
+          }
+        />
       ) : (
         <>
           {/* Desktop: table */}
@@ -536,61 +519,6 @@ export default function AttendanceAllPage() {
           {toast.message}
         </div>
       )}
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────
-// Stats tile
-// ─────────────────────────────────────────────────────────
-function StatTile({ label, value, tone, icon }) {
-  const tones = {
-    brand: 'bg-gradient-to-br from-primary-light/70 to-primary-light/30 border-primary/25 text-textDark',
-    good:  'bg-gradient-to-br from-greenLight to-greenLight/50 border-green/30 text-green',
-    warn:  'bg-gradient-to-br from-yellowLight to-yellowLight/50 border-yellow/30 text-yellow',
-    bad:   'bg-gradient-to-br from-redLight to-redLight/50 border-red/30 text-red',
-  };
-  const iconTones = {
-    brand: 'bg-white/80 text-primary',
-    good:  'bg-white/70 text-green',
-    warn:  'bg-white/70 text-yellow',
-    bad:   'bg-white/70 text-red',
-  };
-  return (
-    <div className={`rounded-xl md:rounded-2xl border shadow-card p-2.5 md:px-4 md:py-3 flex items-center gap-2 md:gap-3 ${tones[tone]}`}>
-      {icon && (
-        <div className={`w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center shrink-0 ${iconTones[tone]}`}>
-          {icon}
-        </div>
-      )}
-      <div className="min-w-0">
-        <p className="text-[9px] md:text-[10px] font-bold tracking-wider uppercase opacity-70 truncate">
-          {label}
-        </p>
-        <p className="text-lg md:text-xl font-bold leading-tight">{value}</p>
-      </div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────
-// Empty state
-// ─────────────────────────────────────────────────────────
-function EmptyState({ hasFilters }) {
-  return (
-    <div className="text-center py-16 md:py-20 px-4 md:px-6 bg-white rounded-2xl border border-border shadow-card">
-      <div className="w-16 h-16 md:w-24 md:h-24 mx-auto rounded-2xl md:rounded-3xl bg-gradient-to-br from-primary-light via-primary-light/70 to-primary/20 flex items-center justify-center mb-4 md:mb-5 shadow-lg shadow-primary/10">
-        <Inbox size={28} className="md:hidden text-primary" />
-        <Inbox size={40} className="hidden md:block text-primary" />
-      </div>
-      <h3 className="text-base md:text-lg font-bold text-textDark mb-1">
-        {hasFilters ? 'No matching records' : 'No attendance records yet'}
-      </h3>
-      <p className="text-xs md:text-sm text-textLight max-w-md mx-auto">
-        {hasFilters
-          ? 'Try adjusting the filters or search term.'
-          : 'Records will appear here as employees start timing in.'}
-      </p>
     </div>
   );
 }

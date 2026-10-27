@@ -22,6 +22,39 @@ const MISSING_TIMEOUT_HOURS = 8;
 const REST_DAY_HOUR = 6;        // rest day notification fires after 6 AM
 const ABSENT_AFTER_HOURS = 12;  // mark absent 12 h after shift start if no scan
 
+// ─── Store business clock (Asia/Manila) ───
+// Supabase Edge Functions run in UTC. Using `new Date().getHours()` or the UTC
+// date here fired reminders 8 hours late and could write an `absent` row on
+// the wrong day. Every date/time decision below goes through these helpers so
+// it matches `attendance_today()` in the database.
+const MANILA_TZ = 'Asia/Manila';
+
+function manilaClock(d: Date): { today: string; minutes: number } {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: MANILA_TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(d);
+  const get = (type: string) =>
+    parts.find((p) => p.type === type)?.value ?? '00';
+  return {
+    today: `${get('year')}-${get('month')}-${get('day')}`,
+    minutes: Number(get('hour')) * 60 + Number(get('minute')),
+  };
+}
+
+function manilaTimeLabel(d: Date): string {
+  return d.toLocaleTimeString('en-PH', {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: MANILA_TZ,
+  });
+}
+
 // ─── FCM helpers ───
 async function getFcmAccessToken(saJson: string): Promise<string> {
   const sa = JSON.parse(saJson);
@@ -173,8 +206,8 @@ serve(async (req) => {
     const accessToken = await getFcmAccessToken(saJson);
 
     const now = new Date();
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    // Business date + wall-clock minutes in Asia/Manila (not UTC).
+    const { today, minutes: currentMinutes } = manilaClock(now);
     const results: Record<string, number> = {
       missing_timein: 0,
       late: 0,
@@ -236,7 +269,7 @@ serve(async (req) => {
       const att = attMap[p.id];
 
       // ── REST DAY (fires once, after 6 AM, only if no shift today) ──
-      if (!shift && now.getHours() >= REST_DAY_HOUR && p.notify_rest_day) {
+      if (!shift && currentMinutes >= REST_DAY_HOUR * 60 && p.notify_rest_day) {
         const r = await tryNotify({
           admin, userId: p.id, type: 'rest_day', refDate: today,
           title: 'Enjoy your rest day ☀️',
@@ -267,14 +300,14 @@ serve(async (req) => {
       // ── LATE (already has time_in, past grace) ──
       if (att?.time_in && att.status === 'late' && p.notify_late) {
         const timeIn = new Date(att.time_in);
-        const actualMin = timeIn.getHours() * 60 + timeIn.getMinutes();
+        const actualMin = manilaClock(timeIn).minutes;
         const lateMin = actualMin - startMin;
 
         if (lateMin > GRACE_MINUTES) {
           const r = await tryNotify({
             admin, userId: p.id, type: 'late', refDate: today,
             title: `You're ${lateMin} min late`,
-            body: `You timed in at ${timeIn.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' })}. Scheduled start was ${String(startHour).padStart(2, '0')}:00.`,
+            body: `You timed in at ${manilaTimeLabel(timeIn)}. Scheduled start was ${String(startHour).padStart(2, '0')}:00.`,
             fcmToken: p.fcm_token, accessToken,
           });
           if (r === 'sent') results.late++;
@@ -285,7 +318,7 @@ serve(async (req) => {
               await sendFcmPush({
                 accessToken, token: adminToken,
                 title: `Admin alert: ${p.full_name} is late`,
-                body: `Timed in at ${timeIn.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' })} (${lateMin} min late).`,
+                body: `Timed in at ${manilaTimeLabel(timeIn)} (${lateMin} min late).`,
               });
               results.admin_alerts++;
             } catch (_) { /* ignore individual admin failures */ }

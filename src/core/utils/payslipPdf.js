@@ -158,8 +158,8 @@ export function exportPayslipPDF({
 
   y = (doc.lastAutoTable?.finalY ?? y) + 22;
 
-  // ─── Gross pay strip ───
-  const stripH = 54;
+  // ─── Gross / deductions / net strip ───
+  const stripH = 64;
   doc.setFillColor(...COLORS.primarySoft);
   doc.setDrawColor(...COLORS.primary);
   doc.setLineWidth(0.8);
@@ -168,19 +168,35 @@ export function exportPayslipPDF({
   doc.setFillColor(...COLORS.primary);
   doc.roundedRect(marginX + 8, y + 10, 4, stripH - 20, 2, 2, 'F');
 
-  doc.setTextColor(...COLORS.primaryDark);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.text('GROSS PAY', marginX + 22, y + 24);
-  doc.setFontSize(7.5);
+  const innerW = width - marginX * 2 - 36;
+  const colW = innerW / 3;
+  const cols = [
+    { label: 'GROSS PAY', value: money(pay.gross), color: COLORS.ink },
+    {
+      label: 'DEDUCTIONS',
+      value: `(${money(pay.totalDeductions)})`,
+      color: COLORS.red,
+    },
+    { label: 'NET PAY', value: money(pay.net), color: COLORS.green },
+  ];
+
+  cols.forEach((c, i) => {
+    const x = marginX + 22 + i * colW;
+    doc.setTextColor(...COLORS.soft);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.text(c.label, x, y + 22);
+
+    doc.setTextColor(...c.color);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(i === 2 ? 16 : 13);
+    doc.text(c.value, x, y + 44);
+  });
+
   doc.setTextColor(...COLORS.soft);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Generated ${fmtGenerated()}`, marginX + 22, y + 40);
-
-  doc.setTextColor(...COLORS.ink);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(20);
-  doc.text(money(pay.gross), width - marginX - 16, y + 34, { align: 'right' });
+  doc.setFontSize(7);
+  doc.text(`Generated ${fmtGenerated()}`, marginX + 22, y + 56);
 
   y += stripH + 20;
 
@@ -190,10 +206,31 @@ export function exportPayslipPDF({
   doc.setFont('helvetica', 'normal');
   const notes = [
     pay.hasRate
-      ? `Computation: daily rate ${money(pay.rate)} ÷ ${8} hours = ${money(pay.hourly)}/hour. Overtime paid at 1.25×.`
+      ? `Computation: daily rate ${money(pay.rate)} ÷ ${8} hours = ${money(pay.hourly)}/hour. Basic pay uses actual hours worked (regular hours capped at 8/day). Overtime paid at 1.25×.`
       : 'No daily rate is set for this employee, so no amounts could be computed.',
     'Regular holiday: 200% if worked, 100% if unworked (paid when the day before was worked). Special non-working day: 130% if worked, no pay if unworked.',
   ];
+
+  if (pay.paidLeaveDays > 0) {
+    notes.push(
+      `Paid leave: ${pay.paidLeaveDays} approved day${pay.paidLeaveDays === 1 ? '' : 's'} paid at the daily rate (${money(pay.paidLeavePay)}).`
+    );
+  }
+  if (pay.nightDiffHours > 0 || pay.restDayHours > 0) {
+    notes.push(
+      `Premiums: ${pay.nightDiffHours}h night differential (${money(pay.nightDiffPay)}) and ${pay.restDayHours}h rest-day premium (${money(pay.restDayPay)}).`
+    );
+  }
+  if (pay.thirteenthMonthAccrual > 0) {
+    notes.push(
+      `13th month accrual for this period: ${money(pay.thirteenthMonthAccrual)} (basic + holiday + paid leave ÷ 12).`
+    );
+  }
+  if (pay.employerContributionTotal > 0) {
+    notes.push(
+      `Employer contributions (company share, not deducted from pay): ${money(pay.employerContributionTotal)}.`
+    );
+  }
   let noteY = y;
   for (const note of notes) {
     const lines = doc.splitTextToSize(note, width - marginX * 2);

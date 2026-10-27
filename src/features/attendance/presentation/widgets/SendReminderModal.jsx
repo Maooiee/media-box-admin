@@ -2,22 +2,27 @@
 import { useEffect, useState } from 'react';
 import { X, Bell, Send } from 'lucide-react';
 import { sendPush } from '../../data/notificationsRepository';
+import { toManilaDate } from '../../../../core/utils/formatters';
 
 const PRESETS = [
   {
     label: 'Missing time-out',
+    kind: 'missed_time_out',
     text: 'You forgot to time out yesterday. Please submit a correction.',
   },
   {
     label: 'Retake selfie',
+    kind: 'retake_selfie',
     text: 'Please retake your selfie — the last one was too low quality.',
   },
   {
     label: 'Time-in reminder',
+    kind: 'time_in',
     text: 'Reminder: Please time in before 9:00 AM tomorrow.',
   },
   {
     label: 'Late reminder',
+    kind: 'late',
     text: 'You were marked late today. Please be on time tomorrow.',
   },
 ];
@@ -28,6 +33,8 @@ const PRESETS = [
  * @param {() => void} props.onClose
  * @param {string} props.userId       - profiles.id of the target employee
  * @param {string} props.employeeName - display name (for the header)
+ * @param {string} [props.recordDate] - YYYY-MM-DD of the attendance record
+ * @param {string} [props.suggestedKind] - preset to prefill based on the record
  * @param {(msg:string, type:'success'|'error')=>void} [props.onToast]
  */
 export default function SendReminderModal({
@@ -35,19 +42,24 @@ export default function SendReminderModal({
   onClose,
   userId,
   employeeName,
+  recordDate,
+  suggestedKind = 'admin_reminder',
   onToast,
 }) {
   const [title, setTitle] = useState('Media Box Reminder');
   const [body, setBody] = useState('');
+  const [kind, setKind] = useState('admin_reminder');
   const [sending, setSending] = useState(false);
 
   useEffect(() => {
     if (open) {
+      const preset = PRESETS.find((p) => p.kind === suggestedKind);
       setTitle('Media Box Reminder');
-      setBody('');
+      setBody(preset?.text ?? '');
+      setKind(preset?.kind ?? 'admin_reminder');
       setSending(false);
     }
-  }, [open, userId]);
+  }, [open, userId, suggestedKind]);
 
   useEffect(() => {
     if (!open) return;
@@ -76,12 +88,24 @@ export default function SendReminderModal({
         userId,
         title: title.trim() || 'Media Box Reminder',
         body: body.trim(),
+        kind,
+        data:
+          kind === 'retake_selfie' && recordDate
+            ? { date: recordDate }
+            : undefined,
         channelId: 'attendance_channel',
       });
       if (res?.success === false) {
         throw new Error(res?.error || 'send-push returned success:false');
       }
-      onToast?.(`Reminder sent to ${employeeName || 'employee'}`, 'success');
+      if (res?.push === false) {
+        onToast?.(
+          res.warning || 'Reminder saved in the app, but the push failed.',
+          'error'
+        );
+      } else {
+        onToast?.(`Reminder sent to ${employeeName || 'employee'}`, 'success');
+      }
       onClose();
     } catch (e) {
       console.error('sendPush failed:', e);
@@ -98,7 +122,7 @@ export default function SendReminderModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden"
+        className="w-full max-w-lg overflow-hidden rounded-3xl border border-white/60 bg-white shadow-float"
       >
         {/* Header */}
         <div className="flex items-start justify-between gap-4 p-5 border-b border-border">
@@ -136,7 +160,10 @@ export default function SendReminderModal({
                 <button
                   key={p.label}
                   type="button"
-                  onClick={() => setBody(p.text)}
+                  onClick={() => {
+                    setBody(p.text);
+                    setKind(p.kind);
+                  }}
                   className="px-3 py-1.5 rounded-full text-xs font-semibold border border-border bg-bg text-textMedium hover:border-primary hover:text-primary transition"
                 >
                   {p.label}
@@ -144,6 +171,15 @@ export default function SendReminderModal({
               ))}
             </div>
           </div>
+
+          {kind === 'retake_selfie' &&
+            recordDate &&
+            recordDate !== toManilaDate() && (
+              <p className="text-[11px] font-semibold text-yellow bg-yellowLight border border-yellow/30 rounded-xl px-3 py-2">
+                This record is not from today. Retake works only for today&apos;s
+                attendance — the employee cannot replace an old selfie.
+              </p>
+            )}
 
           {/* Title */}
           <div>
@@ -165,13 +201,20 @@ export default function SendReminderModal({
             </label>
             <textarea
               value={body}
-              onChange={(e) => setBody(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value;
+                setBody(value);
+                setKind(
+                  PRESETS.find((p) => p.text === value)?.kind ??
+                    'admin_reminder'
+                );
+              }}
               rows={4}
               placeholder="Type a custom reminder, or pick a preset above..."
               className="w-full px-3.5 py-2.5 rounded-xl border border-border bg-bg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
             />
             <p className="text-[10px] text-textLight mt-1">
-              {body.length} characters · delivered to channel{' '}
+              {body.length} characters · saved in the app and pushed to{' '}
               <code className="bg-bg px-1 rounded">attendance_channel</code>
             </p>
           </div>

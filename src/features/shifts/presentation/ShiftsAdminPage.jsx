@@ -1,5 +1,6 @@
 ﻿import { useEffect, useMemo, useState, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalIcon, List, Users, Lock, ChevronDown, Check, Search } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { ChevronLeft, ChevronRight, Calendar as CalIcon, CalendarDays, List, Users, Lock, ChevronDown, Check, Search } from 'lucide-react';
 import { shiftsAdminRepository } from '../data/shiftsAdminRepository';
 import { createShift, SHIFT_KINDS, kindDot } from '../domain/Shift';
 import { employeesRepository } from '../../employees/data/employeesRepository';
@@ -7,6 +8,10 @@ import CalendarGrid from './widgets/CalendarGrid';
 import WeekView from './widgets/WeekView';
 import EditShiftModal from './widgets/EditShiftModal';
 import LeaveTab from '../../leave/presentation/LeaveTab';
+import Toast from '../../../shared/components/Toast';
+import PageHeader from '../../../shared/components/PageHeader';
+import SegmentedTabs from '../../../shared/components/SegmentedTabs';
+import { Skeleton } from '../../../shared/components/Skeleton';
 
 const VIEWS = [
   { key: 'month', label: 'Month', icon: CalIcon },
@@ -14,45 +19,26 @@ const VIEWS = [
 ];
 
 export default function ShiftsAdminPage() {
-  const [topTab, setTopTab] = useState('shifts');
+  // The tab is derived from the route so /leave is a real, linkable page.
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const topTab = pathname === '/leave' ? 'leave' : 'shifts';
 
   return (
-    <div className="space-y-3 md:space-y-4 relative">
-      <div
-        className="absolute -top-24 left-1/2 -translate-x-1/2 w-[900px] h-[500px] rounded-full pointer-events-none hidden md:block"
-        style={{
-          background:
-            'radial-gradient(circle, rgba(242,106,27,0.15) 0%, rgba(242,106,27,0.05) 40%, rgba(242,106,27,0) 70%)',
-        }}
-      />
-
-      <div className="relative space-y-3 md:space-y-4">
-        {/* Tab switcher */}
-        <div className="flex gap-2">
-          <button
-            onClick={() => setTopTab('shifts')}
-            className={`px-3.5 md:px-5 py-2 md:py-2.5 rounded-full text-xs md:text-sm font-semibold transition ${
-              topTab === 'shifts'
-                ? 'bg-gradient-to-br from-primary to-primary-dark text-white shadow-lg shadow-primary/30'
-                : 'bg-white text-textMedium border border-border hover:border-primary/40 hover:bg-primary-light/20'
-            }`}
-          >
-            Shifts
-          </button>
-          <button
-            onClick={() => setTopTab('leave')}
-            className={`px-3.5 md:px-5 py-2 md:py-2.5 rounded-full text-xs md:text-sm font-semibold transition ${
-              topTab === 'leave'
-                ? 'bg-gradient-to-br from-primary to-primary-dark text-white shadow-lg shadow-primary/30'
-                : 'bg-white text-textMedium border border-border hover:border-primary/40 hover:bg-primary-light/20'
-            }`}
-          >
-            Leave Requests
-          </button>
-        </div>
-
-        {topTab === 'leave' ? <LeaveTab /> : <ShiftsContent />}
+    <div className="space-y-3 md:space-y-4">
+      {/* Section switcher — Shifts / Leave */}
+      <div className="flex items-center justify-between gap-3">
+        <SegmentedTabs
+          value={topTab}
+          onChange={(key) => navigate(key === 'leave' ? '/leave' : '/shifts')}
+          items={[
+            { key: 'shifts', label: 'Shifts', icon: CalIcon },
+            { key: 'leave', label: 'Leave Requests', icon: CalendarDays },
+          ]}
+        />
       </div>
+
+      {topTab === 'leave' ? <LeaveTab /> : <ShiftsContent />}
     </div>
   );
 }
@@ -65,6 +51,12 @@ function ShiftsContent() {
   const [loading, setLoading] = useState(true);
   const [editingShift, setEditingShift] = useState(null);
   const [filterEmployeeId, setFilterEmployeeId] = useState('');
+  const [toast, setToast] = useState(null);
+
+  function showToast(message, type = 'error') {
+    setToast({ message, type });
+    window.setTimeout(() => setToast(null), 2800);
+  }
 
   useEffect(() => { loadEmployees(); }, []);
   useEffect(() => {
@@ -143,7 +135,7 @@ function ShiftsContent() {
       loadShifts();
     } catch (e) {
       console.error(e);
-      alert('Failed to save shift: ' + e.message);
+      showToast('Failed to save shift: ' + (e.message || 'unknown error'));
     }
   }
 
@@ -202,60 +194,38 @@ function ShiftsContent() {
 
   return (
     <div className="space-y-3 md:space-y-4">
-      {/* ─── Beautiful Gradient Banner ─── */}
-      <div className="relative overflow-hidden rounded-2xl md:rounded-3xl border border-primary/15 shadow-card bg-gradient-to-br from-primary-light/80 via-white to-white p-4 md:p-6">
-        <div
-          className="pointer-events-none absolute -top-24 -right-16 w-72 h-72 rounded-full opacity-60"
-          style={{
-            background:
-              'radial-gradient(circle, rgba(242,106,27,0.20) 0%, rgba(242,106,27,0) 70%)',
-          }}
-        />
-
-        <div className="relative z-10">
-          <div className="flex items-center gap-1.5 md:gap-2 mb-1 md:mb-2">
-            <span className="text-[9px] md:text-[10px] font-bold tracking-[0.18em] text-primary uppercase">
-              Media Box
-            </span>
-            <span className="w-1 h-1 rounded-full bg-textFaint" />
-            <span className="text-[9px] md:text-[10px] font-bold tracking-[0.18em] text-textLight uppercase">
-              Schedule
-            </span>
-          </div>
-
-          <h2 className="text-2xl md:text-3xl font-bold text-textDark tracking-tight">
-            Shifts
-          </h2>
-          <p className="text-xs md:text-sm text-textMedium mt-1">
-            Long-press any day to assign
-          </p>
-
-          <div className="flex gap-2 md:gap-2.5 flex-wrap mt-4 md:mt-5">
-            <StatPill
-              label="Total"
-              value={totalShifts}
-              className="bg-white/90 border-border text-textDark shadow-sm"
-            />
-            <StatPill
-              label="Opening"
-              value={openingCount}
-              dot="bg-yellow"
-              className="bg-gradient-to-br from-yellowLight/80 to-white border-yellow/30 text-yellow shadow-sm"
-            />
-            <StatPill
-              label="Closing"
-              value={closingCount}
-              dot="bg-blue"
-              className="bg-gradient-to-br from-blueLight/80 to-white border-blue/30 text-blue shadow-sm"
-            />
-          </div>
+      {/* ─── Header ─── */}
+      <PageHeader
+        section="Schedule"
+        title="Shifts"
+        subtitle="Long-press any day to assign"
+        icon={CalIcon}
+      >
+        <div className="flex flex-wrap gap-2 md:gap-2.5">
+          <StatPill
+            label="Total"
+            value={totalShifts}
+            className="border-border bg-white/90 text-textDark shadow-sm"
+          />
+          <StatPill
+            label="Opening"
+            value={openingCount}
+            dot="bg-yellow"
+            className="border-yellow/30 bg-gradient-to-br from-yellowLight/80 to-white text-yellow shadow-sm"
+          />
+          <StatPill
+            label="Closing"
+            value={closingCount}
+            dot="bg-blue"
+            className="border-blue/30 bg-gradient-to-br from-blueLight/80 to-white text-blue shadow-sm"
+          />
         </div>
-      </div>
+      </PageHeader>
 
-      {/* Employee filter - Replaced with custom themed dropdown */}
-      <div className="rounded-2xl p-2.5 md:p-4 border border-border shadow-card bg-white flex items-center gap-2 md:gap-3 flex-wrap relative z-20">
-        <Users size={15} className="text-primary shrink-0" />
-        <label className="text-[10px] font-bold tracking-wider text-textLight shrink-0">
+      {/* Employee filter */}
+      <div className="surface-toolbar relative z-20 flex flex-wrap items-center gap-2 p-2.5 md:gap-3 md:p-4">
+        <Users size={15} className="shrink-0 text-primary" />
+        <label className="shrink-0 text-[10px] font-bold tracking-wider text-textLight">
           FILTER
         </label>
         
@@ -268,7 +238,7 @@ function ShiftsContent() {
         {filterEmployeeId && (
           <button
             onClick={() => setFilterEmployeeId('')}
-            className="text-[11px] md:text-xs font-semibold text-primary hover:underline shrink-0 ml-2"
+            className="ml-2 shrink-0 text-[11px] font-semibold text-primary hover:underline md:text-xs"
           >
             Clear
           </button>
@@ -276,7 +246,7 @@ function ShiftsContent() {
       </div>
 
       {/* Toolbar */}
-      <div className="rounded-2xl p-2.5 md:p-3 border border-border shadow-card bg-white space-y-2 md:space-y-0 md:flex md:items-center md:justify-between md:gap-3">
+      <div className="surface-toolbar space-y-2 p-2.5 md:flex md:items-center md:justify-between md:gap-3 md:space-y-0 md:p-3">
         <div className="flex items-center gap-1.5 md:gap-2">
           <button
             onClick={prev}
@@ -303,26 +273,12 @@ function ShiftsContent() {
           </button>
         </div>
 
-        <div className="inline-flex gap-1 bg-bg rounded-full p-1 self-center md:self-auto border border-border/50">
-          {VIEWS.map((v) => {
-            const Icon = v.icon;
-            return (
-              <button
-                key={v.key}
-                onClick={() => setView(v.key)}
-                className={`inline-flex items-center gap-1.5 px-3 md:px-4 py-1.5 rounded-full text-[11px] md:text-xs font-semibold transition ${
-                  view === v.key
-                    ? 'bg-white text-primary shadow-sm'
-                    : 'text-textMedium hover:text-textDark'
-                }`}
-              >
-                <Icon size={11} className="md:hidden" />
-                <Icon size={12} className="hidden md:block" />
-                {v.label}
-              </button>
-            );
-          })}
-        </div>
+        <SegmentedTabs
+          value={view}
+          onChange={setView}
+          items={VIEWS}
+          className="self-center md:self-auto"
+        />
       </div>
 
       {/* Legend */}
@@ -339,10 +295,7 @@ function ShiftsContent() {
 
       {/* Calendar */}
       {loading ? (
-        <div className="flex flex-col items-center justify-center py-20">
-          <div className="w-8 h-8 rounded-full border-4 border-primary/20 border-t-primary animate-spin mb-3" />
-          <p className="text-xs text-textLight font-medium">Loading shifts...</p>
-        </div>
+        <Skeleton className="h-[420px] w-full" rounded="rounded-2xl" />
       ) : (
         <>
           {isViewingPastMonth() && view === 'month' && (
@@ -385,6 +338,8 @@ function ShiftsContent() {
         onClose={() => setEditingShift(null)}
         onSaved={loadShifts}
       />
+
+      <Toast message={toast?.message} type={toast?.type} />
     </div>
   );
 }

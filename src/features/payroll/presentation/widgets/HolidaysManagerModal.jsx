@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { X, CalendarDays, Plus, Trash2, Pencil, Check, Star } from 'lucide-react';
 import { holidaysRepository } from '../../data/holidaysRepository';
 import DatePicker from '../../../../shared/components/DatePicker';
+import { toManilaDate } from '../../../../core/utils/formatters';
+import { SkeletonList } from '../../../../shared/components/Skeleton';
 
 // Admin UI for the Philippine holiday calendar (public.holidays).
 //   regular → 200% worked / 100% unworked
@@ -11,7 +13,7 @@ export default function HolidaysManagerModal({ open, onClose, onSaved }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [year, setYear] = useState(String(new Date().getFullYear()));
+  const [year, setYear] = useState(String(toManilaDate().slice(0, 4)));
 
   const [date, setDate] = useState('');
   const [name, setName] = useState('');
@@ -29,7 +31,7 @@ export default function HolidaysManagerModal({ open, onClose, onSaved }) {
     try {
       const data = await holidaysRepository.fetchAll();
       setItems(data);
-      const thisYear = String(new Date().getFullYear());
+      const thisYear = String(toManilaDate().slice(0, 4));
       if (!data.some((h) => h.date.startsWith(year)) && !data.some((h) => h.date.startsWith(thisYear))) {
         setYear(thisYear);
       }
@@ -46,7 +48,7 @@ export default function HolidaysManagerModal({ open, onClose, onSaved }) {
 
   const years = useMemo(() => {
     const set = new Set(items.map((h) => h.date.slice(0, 4)));
-    set.add(String(new Date().getFullYear()));
+    set.add(String(toManilaDate().slice(0, 4)));
     return [...set].sort();
   }, [items]);
 
@@ -121,7 +123,7 @@ export default function HolidaysManagerModal({ open, onClose, onSaved }) {
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] animate-[slideUp_220ms_ease-out] flex flex-col max-h-[88vh]"
+        className="flex max-h-[88vh] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-white/60 bg-white shadow-float animate-[slideUp_220ms_ease-out]"
       >
         {/* Header */}
         <div className="relative px-6 pt-6 pb-5 border-b border-border/60">
@@ -267,7 +269,7 @@ export default function HolidaysManagerModal({ open, onClose, onSaved }) {
           </div>
 
           {loading ? (
-            <p className="text-xs text-textLight py-6 text-center">Loading…</p>
+            <SkeletonList rows={3} />
           ) : visible.length === 0 ? (
             <p className="text-xs text-textLight py-6 text-center">
               No holidays in {year} yet.

@@ -1,4 +1,11 @@
 
+[auth]
+site_url = "https://media-box-admin.vercel.app"
+additional_redirect_urls = [
+  "https://media-box-admin.vercel.app/**",
+  "http://localhost:5173/**",
+]
+
 [functions.create-employee]
 enabled = true
 verify_jwt = false

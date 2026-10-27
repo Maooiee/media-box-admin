@@ -69,7 +69,7 @@ export default function AttendanceRecordDrawer({ open, record, onClose, onSaved 
       onClick={onClose}
     >
       <div
-        className="absolute right-0 top-0 bottom-0 w-full max-w-md bg-white shadow-2xl overflow-y-auto"
+        className="absolute right-0 top-0 bottom-0 w-full max-w-md overflow-y-auto border-l border-border bg-white shadow-float"
         onClick={(e) => e.stopPropagation()}
         style={{ animation: 'slideInRight 280ms ease-out' }}
       >

@@ -6,7 +6,14 @@ import {
   ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { supabase } from '../../../core/config/supabase';
-import { formatTime } from '../../../core/utils/formatters';
+import {
+  daysAgoManila,
+  formatTime,
+  toManilaDate,
+} from '../../../core/utils/formatters';
+import SegmentedTabs from '../../../shared/components/SegmentedTabs';
+import EmptyState from '../../../shared/components/EmptyState';
+import { Skeleton, SkeletonStats } from '../../../shared/components/Skeleton';
 
 const WEEKDAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
@@ -41,13 +48,11 @@ export default function EmployeeDetailPage() {
       const { data: emp } = await supabase.from('profiles').select('*').eq('id', id).single();
       setEmployee(emp);
 
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       const { data: att } = await supabase
         .from('attendance_records')
         .select('*')
         .eq('user_id', id)
-        .gte('date', thirtyDaysAgo.toISOString().split('T')[0])
+        .gte('date', daysAgoManila(30))
         .order('date', { ascending: false });
       setAttendance(att || []);
 
@@ -104,11 +109,12 @@ export default function EmployeeDetailPage() {
 
   if (loading || !employee) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
-          <p className="text-sm text-textLight">Loading profile...</p>
-        </div>
+      <div className="mx-auto max-w-5xl space-y-4 pb-12 md:space-y-5">
+        <Skeleton className="h-4 w-36" />
+        <Skeleton className="h-36 w-full md:h-40" rounded="rounded-2xl" />
+        <SkeletonStats count={4} />
+        <Skeleton className="h-11 w-full md:w-96" rounded="rounded-full" />
+        <Skeleton className="h-72 w-full" rounded="rounded-2xl" />
       </div>
     );
   }
@@ -182,40 +188,29 @@ export default function EmployeeDetailPage() {
       </div>
 
       {/* ─── Segmented Tabs ─── */}
-      <div className="inline-flex bg-bg border border-border p-1 rounded-2xl w-full md:w-auto overflow-x-auto hide-scrollbar shadow-sm">
-        <button
-          onClick={() => setTab('attendance')}
-          className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
-            tab === 'attendance' ? 'bg-white text-primary shadow-sm ring-1 ring-black/5' : 'text-textMedium hover:text-textDark hover:bg-white/50'
-          }`}
-        >
-          <Clock size={16} /> Attendance ({attendance.length})
-        </button>
-        <button
-          onClick={() => setTab('tasks')}
-          className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
-            tab === 'tasks' ? 'bg-white text-primary shadow-sm ring-1 ring-black/5' : 'text-textMedium hover:text-textDark hover:bg-white/50'
-          }`}
-        >
-          <ClipboardList size={16} /> Tasks ({activeTasks})
-        </button>
-        <button
-          onClick={() => setTab('schedule')}
-          className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
-            tab === 'schedule' ? 'bg-white text-primary shadow-sm ring-1 ring-black/5' : 'text-textMedium hover:text-textDark hover:bg-white/50'
-          }`}
-        >
-          <CalendarDays size={16} /> Schedule
-        </button>
-      </div>
+      <SegmentedTabs
+        full
+        value={tab}
+        onChange={setTab}
+        items={[
+          { key: 'attendance', label: 'Attendance', icon: Clock, count: attendance.length },
+          { key: 'tasks', label: 'Tasks', icon: ClipboardList, count: activeTasks },
+          { key: 'schedule', label: 'Schedule', icon: CalendarDays },
+        ]}
+        className="md:w-auto md:flex-none"
+      />
 
       {/* ─── Tab Content ─── */}
-      <div className="bg-white rounded-3xl border border-border shadow-card overflow-hidden min-h-[400px]">
+      <div className="surface-card min-h-[400px] overflow-hidden">
         
         {/* Attendance */}
         {tab === 'attendance' && (
           attendance.length === 0 ? (
-            <EmptyState text="No attendance records yet." />
+            <EmptyState
+              icon={Inbox}
+              title="No attendance records yet."
+              description="Data will appear here once available."
+            />
           ) : (
             <div className="divide-y divide-border/60">
               {attendance.map((a) => (
@@ -251,7 +246,11 @@ export default function EmployeeDetailPage() {
         {/* Tasks */}
         {tab === 'tasks' && (
           tasks.length === 0 ? (
-            <EmptyState text="No tasks assigned." />
+            <EmptyState
+              icon={Inbox}
+              title="No tasks assigned."
+              description="Data will appear here once available."
+            />
           ) : (
             <div className="divide-y divide-border/60">
               {tasks.map((t) => (
@@ -318,7 +317,7 @@ export default function EmployeeDetailPage() {
                 {calendarCells.map((cell, i) => {
                   const key = dateKey(cell.date);
                   const shift = shifts.find((s) => s.shift_date === key);
-                  const isToday = key === dateKey(new Date());
+                  const isToday = key === toManilaDate();
                   const isWeekend = cell.date.getDay() === 0 || cell.date.getDay() === 6;
 
                   return (
@@ -383,7 +382,7 @@ function StatCard({ label, value, icon: Icon, tone }) {
     brand: 'bg-white shadow-sm text-primary',
   };
   return (
-    <div className={`p-4 rounded-2xl border shadow-card flex flex-col justify-between ${tones[tone]}`}>
+    <div className={`flex flex-col justify-between rounded-2xl border p-4 shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover ${tones[tone]}`}>
       <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-3 ${iconTones[tone]}`}>
         <Icon size={16} />
       </div>
@@ -415,14 +414,4 @@ function StatusPill({ status }) {
   );
 }
 
-function EmptyState({ text }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-24 text-center px-4">
-      <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary-light/50 to-primary/10 flex items-center justify-center mb-5 shadow-inner">
-        <Inbox size={32} className="text-primary" />
-      </div>
-      <p className="text-base font-bold text-textDark">{text}</p>
-      <p className="text-sm text-textLight mt-1">Data will appear here once available.</p>
-    </div>
-  );
-}
+// ─── End of employee detail helpers ───

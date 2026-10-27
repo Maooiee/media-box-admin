@@ -126,6 +126,11 @@ p = computeEmployeePay({
 });
 check(near(p.utDeduction, 80.63), 'UT 1h = 80.63', p.utDeduction);
 check(near(p.gross, 564.37), 'gross = 645 − 80.63 = 564.37', p.gross);
+check(near(p.net, p.gross), 'net = gross (UT not deducted twice)', p.net);
+check(
+  !p.deductions.some((d) => d.key === 'undertime'),
+  'UT is an earnings reduction, not a second deduction'
+);
 
 // ── 8. Holiday on the period boundary uses the day-before record ──
 console.log('\n[8] holiday first day of period, worked day before period start');
@@ -150,8 +155,8 @@ p = computeEmployeePay({
 });
 check(p.hasRate === false && p.gross === 0, 'no rate → gross 0', p);
 
-// ── 10. on_leave counts as paid ──
-console.log('\n[10] on_leave paid');
+// ── 10. on_leave is unpaid: no basic day, gross stays 0 ──
+console.log('\n[10] on_leave unpaid');
 p = computeEmployeePay({
   dailyRate: 645,
   records: [rec('2026-10-19', 'on_leave', null, null)],
@@ -159,7 +164,25 @@ p = computeEmployeePay({
   periodStart: '2026-10-19',
   periodEnd: '2026-10-25',
 });
-check(p.basicDays === 1 && near(p.gross, 645), 'on_leave paid', p);
+check(
+  p.basicDays === 0 && p.unpaidLeaveDays === 1 && near(p.gross, 0),
+  'on_leave unpaid (0 basic days, 1 tracked leave day)',
+  p
+);
+
+// Leave on a regular holiday stays unpaid (no unworked-holiday pay).
+p = computeEmployeePay({
+  dailyRate: 645,
+  records: [rec('2026-10-18'), rec('2026-10-19', 'on_leave', null, null)],
+  holidaysByDate: new Map([['2026-10-19', { kind: 'regular', name: 'Test' }]]),
+  periodStart: '2026-10-19',
+  periodEnd: '2026-10-25',
+});
+check(
+  near(p.gross, 0) && p.unpaidLeaveDays === 1,
+  'on_leave on holiday unpaid (no holiday pay)',
+  p
+);
 
 // ── 11. aggregatePayrollRows: counts + exclusion of day-before record ──
 console.log('\n[11] aggregatePayrollRows');
@@ -199,6 +222,33 @@ check(rows.every((r) => r.cutoff_start === '2026-10-19'), 'period stamped on row
 console.log('\n[12] addDaysISO');
 check(addDaysISO('2026-10-31', 1) === '2026-11-01', 'month rollover', addDaysISO('2026-10-31', 1));
 check(addDaysISO('2027-01-01', -1) === '2026-12-31', 'year rollover back', addDaysISO('2027-01-01', -1));
+
+// ── 13. Partial day is paid by the hours actually worked ──
+console.log('\n[13] six-hour day');
+p = computeEmployeePay({
+  dailyRate: 645,
+  records: [
+    rec('2026-10-19', 'present', '2026-10-19T08:00:00+08:00', '2026-10-19T14:00:00+08:00'),
+  ],
+  holidaysByDate: new Map(),
+  periodStart: '2026-10-19',
+  periodEnd: '2026-10-19',
+});
+check(near(p.basicHours, 6), 'basicHours = 6', p.basicHours);
+check(near(p.basicDays, 0.75), 'basicDays = 0.75', p.basicDays);
+check(near(p.basicPay, 483.75), 'basicPay = 6h × 80.625 = 483.75', p.basicPay);
+check(near(p.gross, 483.75), 'gross = 483.75 (not a full day)', p.gross);
+
+// A long span still pays at most one regular 8-hour day; extra time is OT.
+p = computeEmployeePay({
+  dailyRate: 645,
+  records: [rec('2026-10-19')], // 08:00–17:00 = 9 elapsed hours
+  holidaysByDate: new Map(),
+  periodStart: '2026-10-19',
+  periodEnd: '2026-10-19',
+});
+check(near(p.basicHours, 8), '9h span caps at 8 regular hours', p.basicHours);
+check(near(p.basicPay, 645), 'full day still pays the daily rate', p.basicPay);
 
 console.log(failures === 0 ? '\nALL CHECKS PASSED' : `\n${failures} CHECK(S) FAILED`);
 process.exit(failures === 0 ? 0 : 1);

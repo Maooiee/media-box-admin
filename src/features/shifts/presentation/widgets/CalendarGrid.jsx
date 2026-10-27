@@ -296,7 +296,7 @@ export default function CalendarGrid({
 
   return (
     <div
-      className="bg-white rounded-2xl border border-border shadow-sm select-none"
+      className="surface-card select-none"
       onMouseLeave={() => {
         if (dragging && dragStartRef.current && dragEndRef.current && draggedRef.current) {
           setPending({ start: dragStartRef.current, end: dragEndRef.current });
@@ -441,7 +441,7 @@ function BulkRangePopup({ start, end, employees, onClose, onConfirm }) {
         onClick={onClose}
       />
       <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[101] w-[calc(100vw-1.5rem)] max-w-md">
-        <div className="bg-white rounded-3xl shadow-2xl border border-border overflow-hidden max-h-[90vh] flex flex-col">
+        <div className="flex max-h-[90vh] flex-col overflow-hidden rounded-3xl border border-white/60 bg-white shadow-float">
           <div className="relative px-5 pt-5 pb-4 bg-gradient-to-br from-primary-light/70 via-primary-light/30 to-transparent border-b border-primary/10">
             <div className="flex items-start justify-between gap-3">
               <div>

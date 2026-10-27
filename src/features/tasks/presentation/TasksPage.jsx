@@ -1,7 +1,7 @@
 ﻿// admin-panel/src/features/tasks/presentation/TasksPage.jsx
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Plus, Search, LayoutGrid, List as ListIcon, History, Clock,
+  Plus, LayoutGrid, List as ListIcon, History, Clock,
   CheckCircle2, AlertTriangle, CalendarClock, CheckSquare,
 } from 'lucide-react';
 import { tasksRepository } from '../data/tasksRepository';
@@ -10,6 +10,12 @@ import {
 } from '../domain/Task';
 import { supabase } from '../../../core/config/supabase';
 import PageHeader from '../../../shared/components/PageHeader';
+import StatTile from '../../../shared/components/StatTile';
+import SegmentedTabs from '../../../shared/components/SegmentedTabs';
+import SearchField from '../../../shared/components/SearchField';
+import FilterChips from '../../../shared/components/FilterChips';
+import EmptyState from '../../../shared/components/EmptyState';
+import { SkeletonGrid } from '../../../shared/components/Skeleton';
 import AddTaskModal from './widgets/AddTaskModal';
 import TaskCard from './widgets/TaskCard';
 import TaskRow from './widgets/TaskRow';
@@ -243,110 +249,42 @@ export default function TasksPage() {
       {/* Tabs + Filters */}
       <div className="space-y-2 md:space-y-0 md:flex md:items-center md:gap-3 md:flex-wrap">
         {/* Active/History tabs */}
-        <div className="inline-flex bg-white border border-border rounded-full p-1 shadow-card shrink-0">
-          <button
-            onClick={() => setPageTab('active')}
-            className={`inline-flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 rounded-full text-[11px] md:text-xs font-semibold transition ${
-              pageTab === 'active'
-                ? 'bg-gradient-to-br from-primary to-primary-dark text-white shadow-md shadow-primary/30'
-                : 'text-textMedium hover:text-textDark'
-            }`}
-          >
-            <Clock size={12} className="md:hidden" />
-            <Clock size={13} className="hidden md:block" />
-            Active
-            <span
-              className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[16px] md:min-w-[18px] text-center ${
-                pageTab === 'active' ? 'bg-white/25 text-white' : 'bg-bg text-textLight'
-              }`}
-            >
-              {activeTasks.length}
-            </span>
-          </button>
-          <button
-            onClick={() => setPageTab('history')}
-            className={`inline-flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 rounded-full text-[11px] md:text-xs font-semibold transition ${
-              pageTab === 'history'
-                ? 'bg-gradient-to-br from-primary to-primary-dark text-white shadow-md shadow-primary/30'
-                : 'text-textMedium hover:text-textDark'
-            }`}
-          >
-            <History size={12} className="md:hidden" />
-            <History size={13} className="hidden md:block" />
-            History
-            <span
-              className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[16px] md:min-w-[18px] text-center ${
-                pageTab === 'history' ? 'bg-white/25 text-white' : 'bg-bg text-textLight'
-              }`}
-            >
-              {historyTasks.length}
-            </span>
-          </button>
-        </div>
+        <SegmentedTabs
+          value={pageTab}
+          onChange={setPageTab}
+          items={[
+            { key: 'active', label: 'Active', icon: Clock, count: activeTasks.length },
+            { key: 'history', label: 'History', icon: History, count: historyTasks.length },
+          ]}
+        />
 
         {/* Status chips — horizontal scroll on mobile */}
         {pageTab === 'active' && (
-          <div className="-mx-4 md:mx-0 px-4 md:px-0 overflow-x-auto md:overflow-visible">
-            <div className="flex gap-1.5 md:gap-1.5 w-max md:w-auto">
-              {STATUS_TABS.map((t) => {
-                const count =
-                  t.key === 'all' ? total :
-                  t.key === 'backlog' ? backlog :
-                  t.key === 'onProgress' ? progress :
-                  t.key === 'onHold' ? onHold :
-                  done;
-                const active = filter === t.key;
-                return (
-                  <button
-                    key={t.key}
-                    onClick={() => setFilter(t.key)}
-                    className={`inline-flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 rounded-full text-[11px] font-bold transition whitespace-nowrap ${
-                      active
-                        ? 'bg-gradient-to-br from-primary to-primary-dark text-white shadow-md shadow-primary/30'
-                        : 'bg-white text-textMedium border border-border hover:border-primary/40 hover:bg-primary-light/20 hover:text-textDark'
-                    }`}
-                  >
-                    {t.label}
-                    <span
-                      className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[16px] text-center ${
-                        active
-                          ? 'bg-white/25 text-white'
-                          : count > 0
-                          ? 'bg-primary-light text-primary'
-                          : 'bg-bg text-textFaint'
-                      }`}
-                    >
-                      {count}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          <FilterChips
+            options={STATUS_TABS.map((t) => ({
+              ...t,
+              count:
+                t.key === 'all' ? total :
+                t.key === 'backlog' ? backlog :
+                t.key === 'onProgress' ? progress :
+                t.key === 'onHold' ? onHold :
+                done,
+            }))}
+            value={filter}
+            onChange={setFilter}
+          />
         )}
       </div>
 
       {/* Toolbar */}
-      <div className="rounded-2xl p-2 border border-border shadow-card bg-gradient-to-r from-white via-white to-primary-light/15 space-y-2 md:space-y-0 md:flex md:items-center md:gap-2 md:flex-wrap">
+      <div className="surface-toolbar space-y-2 p-2 md:flex md:flex-wrap md:items-center md:gap-2 md:space-y-0">
         {/* Search */}
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-border bg-white focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition md:flex-1 md:min-w-[220px]">
-          <Search size={14} className="text-textLight shrink-0" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search tasks…"
-            className="flex-1 min-w-0 bg-transparent outline-none text-sm text-textDark placeholder:text-textLight"
-          />
-          {search && (
-            <button
-              onClick={() => setSearch('')}
-              className="text-[10px] font-bold text-textLight hover:text-primary transition shrink-0"
-            >
-              CLEAR
-            </button>
-          )}
-        </div>
+        <SearchField
+          value={search}
+          onChange={setSearch}
+          placeholder="Search tasks…"
+          className="md:min-w-[220px] md:flex-1"
+        />
 
         {/* Sort + View — same row on mobile */}
         <div className="flex items-center gap-2">
@@ -354,7 +292,7 @@ export default function TasksPage() {
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value)}
-              className="flex-1 md:flex-none px-3 py-1.5 rounded-full border border-border bg-white shadow-sm text-xs font-semibold text-textDark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary cursor-pointer"
+              className="field-select flex-1 text-xs md:flex-none"
             >
               {SORTS.map((s) => (
                 <option key={s.key} value={s.key}>
@@ -393,7 +331,7 @@ export default function TasksPage() {
 
       {/* Task list */}
       {loading ? (
-        <div className="text-center py-20 text-textLight text-sm">Loading...</div>
+        <SkeletonGrid count={6} />
       ) : visible.length === 0 ? (
         pageTab === 'history' ? (
           <EmptyHistory filtered={hasFilters} />
@@ -434,39 +372,6 @@ export default function TasksPage() {
           onSaved={loadTasks}
         />
       )}
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────
-// Stats tile
-// ─────────────────────────────────────────────────────────
-function StatTile({ label, value, tone, icon }) {
-  const tones = {
-    brand: 'bg-gradient-to-br from-primary-light/70 to-primary-light/30 border-primary/25 text-textDark',
-    good:  'bg-gradient-to-br from-greenLight to-greenLight/50 border-green/30 text-green',
-    warn:  'bg-gradient-to-br from-yellowLight to-yellowLight/50 border-yellow/30 text-yellow',
-    bad:   'bg-gradient-to-br from-redLight to-redLight/50 border-red/30 text-red',
-  };
-  const iconTones = {
-    brand: 'bg-white/80 text-primary',
-    good:  'bg-white/70 text-green',
-    warn:  'bg-white/70 text-yellow',
-    bad:   'bg-white/70 text-red',
-  };
-  return (
-    <div className={`rounded-xl md:rounded-2xl border shadow-card p-2.5 md:px-3.5 md:py-3 flex items-center gap-2 md:gap-3 ${tones[tone]}`}>
-      {icon && (
-        <div className={`w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center shrink-0 ${iconTones[tone]}`}>
-          {icon}
-        </div>
-      )}
-      <div className="min-w-0">
-        <p className="text-[9px] md:text-[10px] font-bold tracking-wider uppercase opacity-70 truncate">
-          {label}
-        </p>
-        <p className="text-lg md:text-xl font-bold leading-tight">{value}</p>
-      </div>
     </div>
   );
 }
@@ -539,20 +444,15 @@ function HistoryRow({ task, onEdit }) {
 
 function EmptyHistory({ filtered }) {
   return (
-    <div className="text-center py-16 md:py-20 bg-white rounded-3xl border border-border shadow-card">
-      <div className="w-16 h-16 md:w-20 md:h-20 mx-auto rounded-3xl bg-gradient-to-br from-primary-light to-primary-light/50 flex items-center justify-center mb-4">
-        <History size={28} className="md:hidden text-primary" />
-        <History size={32} className="hidden md:block text-primary" />
-      </div>
-      <p className="text-sm md:text-base font-bold text-textDark">
-        {filtered ? 'No matching history' : 'Nothing here yet'}
-      </p>
-      <p className="text-xs md:text-sm text-textLight mt-1">
-        {filtered
+    <EmptyState
+      icon={History}
+      title={filtered ? 'No matching history' : 'Nothing here yet'}
+      description={
+        filtered
           ? 'Try a different search.'
-          : 'Tasks move here 1 hour after being marked done.'}
-      </p>
-    </div>
+          : 'Tasks move here 1 hour after being marked done.'
+      }
+    />
   );
 }
 

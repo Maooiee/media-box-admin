@@ -1,12 +1,40 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
 import {
   Bell, Search, X, LayoutGrid, List as ListIcon,
-  Camera, AlertTriangle, CheckCircle2, Users, Sparkles,
+  Camera, AlertTriangle, CheckCircle2, Sparkles,
 } from 'lucide-react';
 import { attendanceRepository } from '../data/attendanceRepository';
 import { createAttendanceRecord } from '../domain/AttendanceRecord';
-import { formatTime, daysUntil, initials } from '../../../core/utils/formatters';
+import { fetchLeaveDaysByUser } from '../../leave/data/leaveStatusRepository';
+import {
+  formatTime,
+  daysUntil,
+  initials,
+  toManilaDate,
+} from '../../../core/utils/formatters';
 import SendReminderModal from './widgets/SendReminderModal';
+import PageHeader from '../../../shared/components/PageHeader';
+import StatTile from '../../../shared/components/StatTile';
+import EmptyState from '../../../shared/components/EmptyState';
+import SearchField from '../../../shared/components/SearchField';
+import FilterChips from '../../../shared/components/FilterChips';
+import { SkeletonGrid } from '../../../shared/components/Skeleton';
+
+/** Picks the most useful reminder preset for a given attendance/selfie record. */
+function suggestedReminderKind(record) {
+  if (!record) return 'admin_reminder';
+  if (record.timeIn && !record.timeOut) return 'missed_time_out';
+
+  const isToday = record.date === toManilaDate();
+  const issues = record.selfieIssues?.length ?? 0;
+  const score = record.selfieQualityScore;
+  if (isToday && (issues > 0 || (score !== null && score < 60))) {
+    return 'retake_selfie';
+  }
+
+  if (String(record.status ?? '').toLowerCase().includes('late')) return 'late';
+  return 'time_in';
+}
 
 export default function SelfieReviewPage() {
   const [records, setRecords] = useState([]);
@@ -37,8 +65,25 @@ export default function SelfieReviewPage() {
       // Only show records that actually have a selfie
       const withSelfie = raw.filter((row) => row.selfie_url);
 
+      // Approved leave is not an attendance day: those employees must never
+      // show up as "missing" or "flagged" selfies. Check the real date span
+      // of the loaded rows so the range filter stays accurate.
+      let leaveDays = new Map();
+      if (withSelfie.length > 0) {
+        const dates = withSelfie
+          .map((row) => row.date)
+          .filter(Boolean)
+          .sort();
+        leaveDays = await fetchLeaveDaysByUser(dates[0], dates[dates.length - 1]);
+      }
+
+      const eligible = withSelfie.filter((row) => {
+        if (row.status === 'on_leave') return false;
+        return !leaveDays.get(row.user_id)?.has(row.date);
+      });
+
       setRecords(
-        withSelfie.map((row) => ({
+        eligible.map((row) => ({
           ...createAttendanceRecord(row),
           userId: row.user_id ?? row.userId,
         }))
@@ -110,59 +155,27 @@ export default function SelfieReviewPage() {
   return (
     <div className="space-y-3 md:space-y-4">
       {/* ─── Page Header ─── */}
-      <div className="bg-gradient-to-br from-primary-light/60 via-white to-white rounded-2xl border border-primary/15 shadow-card p-3 md:p-5">
-        <div className="flex items-start gap-3 md:gap-4">
-          <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center text-white shadow-brand shrink-0">
-            <Camera size={18} className="md:hidden" />
-            <Camera size={22} className="hidden md:block" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5 md:gap-2 mb-0.5 md:mb-1">
-              <span className="text-[9px] md:text-[10px] font-bold tracking-[0.18em] text-primary uppercase">
-                Attendance
-              </span>
-              <span className="w-1 h-1 rounded-full bg-textFaint" />
-              <span className="text-[9px] md:text-[10px] font-bold tracking-[0.18em] text-textLight uppercase">
-                Selfie Review
-              </span>
-            </div>
-            <h2 className="text-lg md:text-2xl font-bold text-textDark tracking-tight leading-tight truncate">
-              Selfie Review
-            </h2>
-            <p className="text-[11px] md:text-xs text-textLight mt-0.5 truncate">
-              Review attendance photos and quality scores
-            </p>
-          </div>
-        </div>
-
-        {/* Range chips — horizontal scroll on mobile, aligned right on desktop */}
-        <div className="-mx-3 md:mx-0 px-3 md:px-0 mt-3 md:mt-0 md:absolute md:right-5 md:top-1/2 md:-translate-y-1/2 overflow-x-auto md:overflow-visible md:relative md:mt-3 md:top-auto md:translate-y-0">
-          <div className="flex gap-1.5 md:gap-2 w-max md:w-auto">
-            {[
-              { key: 'all', label: 'All' },
-              { key: 'today', label: 'Today' },
-              { key: 'week', label: 'Week' },
-              { key: 'month', label: 'Month' },
-            ].map((f) => (
-              <button
-                key={f.key}
-                onClick={() => setRangeFilter(f.key)}
-                className={`px-3 md:px-4 py-1.5 md:py-2 rounded-full text-[11px] md:text-xs font-semibold transition whitespace-nowrap ${
-                  rangeFilter === f.key
-                    ? 'bg-gradient-to-br from-primary to-primary-dark text-white shadow-md shadow-primary/30'
-                    : 'bg-white/80 text-textMedium border border-border hover:border-primary/40 hover:bg-primary-light/20 hover:text-textDark'
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        section="Attendance"
+        title="Selfie Review"
+        subtitle="Review attendance photos and quality scores"
+        icon={Camera}
+      >
+        <FilterChips
+          options={[
+            { key: 'all', label: 'All' },
+            { key: 'today', label: 'Today' },
+            { key: 'week', label: 'Week' },
+            { key: 'month', label: 'Month' },
+          ]}
+          value={rangeFilter}
+          onChange={setRangeFilter}
+        />
+      </PageHeader>
 
       {/* ─── Stats ─── */}
       {!loading && records.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-2 md:gap-3">
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-3">
           <StatTile label="Total" value={stats.total} tone="brand" icon={<Camera size={13} />} />
           <StatTile label="With Selfie" value={stats.withSelfie} tone="good" icon={<CheckCircle2 size={13} />} />
           <StatTile label="Flagged" value={stats.flagged} tone="warn" icon={<AlertTriangle size={13} />} />
@@ -171,38 +184,25 @@ export default function SelfieReviewPage() {
             value={stats.avg > 0 ? stats.avg : '—'}
             tone="info"
             icon={<Sparkles size={13} />}
-            className="col-span-2 md:col-span-1"
           />
         </div>
       )}
 
       {/* ─── Toolbar ─── */}
       {!loading && records.length > 0 && (
-        <div className="rounded-2xl border border-border shadow-card bg-gradient-to-r from-white via-white to-primary-light/15 p-2.5 md:p-3 space-y-2 md:space-y-0 md:flex md:items-center md:gap-3">
-          <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-border bg-white focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition md:flex-1">
-            <Search size={14} className="text-textLight shrink-0" />
-            <input
-              type="text"
-              placeholder="Search by name or ID…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="flex-1 min-w-0 bg-transparent outline-none text-sm text-textDark placeholder:text-textLight"
-            />
-            {search && (
-              <button
-                onClick={() => setSearch('')}
-                className="text-[10px] font-bold text-textLight hover:text-primary transition shrink-0"
-              >
-                CLEAR
-              </button>
-            )}
-          </div>
+        <div className="surface-toolbar space-y-2 p-2.5 md:flex md:items-center md:gap-3 md:space-y-0 md:p-3">
+          <SearchField
+            value={search}
+            onChange={setSearch}
+            placeholder="Search by name or ID…"
+            className="md:flex-1"
+          />
 
-          <div className="grid grid-cols-2 md:flex md:items-center gap-1.5 md:gap-2">
+          <div className="grid grid-cols-2 gap-1.5 md:flex md:items-center md:gap-2">
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="col-span-2 md:col-span-1 md:flex-none px-2.5 md:px-3 py-2 rounded-xl border border-border bg-white text-[11px] md:text-xs font-semibold text-textDark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary cursor-pointer"
+              className="field-select col-span-2 md:col-span-1 md:flex-none md:text-xs"
             >
               <option value="recent">Sort: Most Recent</option>
               <option value="lowest">Sort: Lowest Score</option>
@@ -211,10 +211,10 @@ export default function SelfieReviewPage() {
 
             <button
               onClick={() => setFlaggedOnly((v) => !v)}
-              className={`inline-flex items-center justify-center gap-1 px-2.5 md:px-3 py-2 rounded-xl text-[11px] md:text-xs font-bold transition border ${
+              className={`inline-flex items-center justify-center gap-1 rounded-xl border px-2.5 py-2 text-[11px] font-bold transition md:px-3 md:text-xs ${
                 flaggedOnly
-                  ? 'bg-gradient-to-br from-amber-500 to-amber-600 text-white border-amber-500 shadow-md shadow-amber-500/20'
-                  : 'bg-white text-textMedium border-border hover:border-amber-400 hover:bg-amber-50'
+                  ? 'border-yellow bg-gradient-to-br from-yellow to-yellow/85 text-white shadow-md shadow-yellow/25'
+                  : 'border-border bg-white text-textMedium hover:border-yellow/50 hover:bg-yellowLight/40'
               }`}
             >
               <AlertTriangle size={11} />
@@ -251,14 +251,13 @@ export default function SelfieReviewPage() {
 
       {/* ─── Content ─── */}
       {loading ? (
-        <div className="flex items-center justify-center py-24">
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-10 h-10 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
-            <p className="text-sm text-textLight">Loading records...</p>
-          </div>
-        </div>
+        <SkeletonGrid count={6} />
       ) : records.length === 0 ? (
-        <EmptyState />
+        <EmptyState
+          icon={Camera}
+          title="No attendance records"
+          description="Records with selfies will show up here"
+        />
       ) : visible.length === 0 ? (
         <NoResults
           onClear={() => {
@@ -293,6 +292,8 @@ export default function SelfieReviewPage() {
         onClose={() => setReminderRecord(null)}
         userId={reminderRecord?.userId}
         employeeName={reminderRecord?.employeeName}
+        recordDate={reminderRecord?.date}
+        suggestedKind={suggestedReminderKind(reminderRecord)}
         onToast={showToast}
       />
 
@@ -312,62 +313,8 @@ export default function SelfieReviewPage() {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Stat tile
+// No-results
 // ─────────────────────────────────────────────────────────────
-function StatTile({ label, value, tone, icon, className = '' }) {
-  const tones = {
-    brand: 'bg-gradient-to-br from-primary-light/70 to-primary-light/30 border-primary/25 text-textDark',
-    good: 'bg-gradient-to-br from-greenLight to-greenLight/50 border-green/30 text-green',
-    warn: 'bg-gradient-to-br from-yellowLight to-yellowLight/50 border-yellow/30 text-yellow',
-    bad: 'bg-gradient-to-br from-redLight to-redLight/50 border-red/30 text-red',
-    info: 'bg-gradient-to-br from-indigo-100 to-indigo-50 border-indigo-300/40 text-indigo-700',
-    muted: 'bg-gradient-to-br from-bg to-bg/50 border-border text-textMedium',
-  };
-  const iconTones = {
-    brand: 'bg-white/80 text-primary',
-    good: 'bg-white/70 text-green',
-    warn: 'bg-white/70 text-yellow',
-    bad: 'bg-white/70 text-red',
-    info: 'bg-white/80 text-indigo-600',
-    muted: 'bg-white/80 text-textLight',
-  };
-  return (
-    <div className={`rounded-xl md:rounded-2xl border shadow-card p-2.5 md:px-3.5 md:py-3 flex items-center gap-2 md:gap-3 ${tones[tone]} ${className}`}>
-      {icon && (
-        <div className={`w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center shrink-0 ${iconTones[tone]}`}>
-          {icon}
-        </div>
-      )}
-      <div className="min-w-0">
-        <p className="text-[9px] md:text-[10px] font-bold tracking-wider uppercase opacity-70 truncate">
-          {label}
-        </p>
-        <p className="text-lg md:text-xl font-bold leading-tight">{value}</p>
-      </div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────
-// Empty + no-results
-// ─────────────────────────────────────────────────────────────
-function EmptyState() {
-  return (
-    <div className="text-center py-16 md:py-20 px-4 md:px-6 bg-white rounded-2xl md:rounded-3xl border border-border shadow-card">
-      <div className="w-16 h-16 md:w-24 md:h-24 mx-auto rounded-2xl md:rounded-3xl bg-gradient-to-br from-primary-light via-primary-light/70 to-primary/20 flex items-center justify-center mb-4 md:mb-5 shadow-lg shadow-primary/10">
-        <Camera size={28} className="md:hidden text-primary" />
-        <Camera size={40} className="hidden md:block text-primary" />
-      </div>
-      <h3 className="text-base md:text-lg font-bold text-textDark mb-1">
-        No attendance records
-      </h3>
-      <p className="text-xs md:text-sm text-textLight max-w-md mx-auto">
-        Records with selfies will show up here
-      </p>
-    </div>
-  );
-}
-
 function NoResults({ onClear }) {
   return (
     <div className="text-center py-16 md:py-20 px-4 md:px-6 bg-white rounded-2xl md:rounded-3xl border border-border shadow-card">
@@ -631,8 +578,11 @@ function StatusPill({ status }) {
     late: { bg: 'bg-yellowLight text-yellow border-yellow/25', dot: 'bg-yellow' },
     absent: { bg: 'bg-redLight text-red border-red/25', dot: 'bg-red' },
     on_leave: { bg: 'bg-blueLight text-blue border-blue/25', dot: 'bg-blue' },
+    // Unknown/extra statuses (e.g. a future schema addition) must not look
+    // like an absence — show them as neutral instead.
+    other: { bg: 'bg-bg text-textMedium border-border', dot: 'bg-textFaint' },
   };
-  const s = map[status] ?? map.absent;
+  const s = map[status] ?? map.other;
   return (
     <span
       className={`inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wider shrink-0 ${s.bg}`}
@@ -676,7 +626,8 @@ function SelfieDetailModal({ record: r, onClose }) {
           max-h-[92vh] md:max-h-[90vh]
           overflow-hidden
           flex flex-col md:flex-row
-          shadow-2xl
+          shadow-float
+          border border-white/60
         "
       >
         <button

@@ -1,9 +1,15 @@
 // admin-panel/src/features/leave/presentation/LeaveTab.jsx
 import { useEffect, useState } from 'react';
-import { Inbox, RefreshCw } from 'lucide-react';
+import { CalendarDays, Inbox, RefreshCw, Settings2 } from 'lucide-react';
 import { supabase } from '../../../core/config/supabase';
 import { leaveAdminRepository } from '../data/leaveAdminRepository';
 import LeaveRequestCard from './widgets/LeaveRequestCard';
+import LeaveTypeSettingsModal from './widgets/LeaveTypeSettingsModal';
+import PageHeader from '../../../shared/components/PageHeader';
+import SegmentedTabs from '../../../shared/components/SegmentedTabs';
+import EmptyState from '../../../shared/components/EmptyState';
+import Toast from '../../../shared/components/Toast';
+import { SkeletonGrid } from '../../../shared/components/Skeleton';
 
 const TABS = [
   { key: 'all', label: 'All' },
@@ -19,6 +25,7 @@ export default function LeaveTab() {
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
   const [toast, setToast] = useState(null);
+  const [showTypes, setShowTypes] = useState(false);
 
   useEffect(() => {
     load();
@@ -81,64 +88,54 @@ export default function LeaveTab() {
   }
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        {/* Tabs */}
-        <div className="flex gap-2 flex-wrap">
-          {TABS.map((t) => {
-            const active = tab === t.key;
-            const count = counts[t.key] ?? 0;
-            return (
-              <button
-                key={t.key}
-                onClick={() => setTab(t.key)}
-                className={`px-4 py-2 rounded-full text-xs font-semibold transition flex items-center gap-2 ${
-                  active
-                    ? 'bg-primary text-white shadow-sm'
-                    : 'bg-white text-textMedium border border-border hover:border-primary/40'
-                }`}
-              >
-                {t.label}
-                {count > 0 && (
-                  <span
-                    className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                      active ? 'bg-white/25' : 'bg-bg text-textLight'
-                    }`}
-                  >
-                    {count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
+    <div className="space-y-3 md:space-y-4">
+      <PageHeader
+        section="Schedule"
+        title="Leave Requests"
+        subtitle="Review and act on employee leave requests"
+        icon={CalendarDays}
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setShowTypes(true)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white px-3 py-2 text-xs font-semibold text-textMedium transition hover:border-primary hover:text-primary md:px-4 md:py-2.5 md:text-sm"
+            >
+              <Settings2 size={14} />
+              Pay settings
+            </button>
+            <button
+              onClick={load}
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white px-3 py-2 text-xs font-semibold text-textMedium transition hover:border-primary hover:text-primary md:px-4 md:py-2.5 md:text-sm"
+            >
+              <RefreshCw size={14} />
+              Refresh
+            </button>
+          </div>
+        }
+      />
 
-        <button
-          onClick={load}
-          className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full text-sm font-semibold bg-white border border-border text-textMedium hover:border-primary hover:text-primary transition"
-        >
-          <RefreshCw size={14} /> Refresh
-        </button>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <SegmentedTabs
+          value={tab}
+          onChange={setTab}
+          items={TABS.map((t) => ({ ...t, count: counts[t.key] ?? 0 }))}
+        />
       </div>
 
       {loading ? (
-        <div className="text-center py-20 text-textLight">Loading...</div>
+        <SkeletonGrid count={3} />
       ) : requests.length === 0 ? (
-        <div className="text-center py-20 bg-white rounded-3xl border border-border">
-          <div className="w-20 h-20 mx-auto rounded-3xl bg-primary-light flex items-center justify-center mb-4">
-            <Inbox size={36} className="text-primary" />
-          </div>
-          <p className="text-base font-bold text-textDark">
-            {tab === 'pending' ? 'No pending requests' : 'Nothing here'}
-          </p>
-          <p className="text-sm text-textLight mt-1">
-            {tab === 'pending'
+        <EmptyState
+          icon={Inbox}
+          title={tab === 'pending' ? 'No pending requests' : 'Nothing here'}
+          description={
+            tab === 'pending'
               ? 'New leave requests will appear here.'
-              : 'Try a different tab.'}
-          </p>
-        </div>
+              : 'Try a different tab.'
+          }
+        />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {requests.map((r) => (
             <LeaveRequestCard
               key={r.id}
@@ -152,17 +149,14 @@ export default function LeaveTab() {
         </div>
       )}
 
-      {toast && (
-        <div
-          className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] px-5 py-3 rounded-2xl shadow-2xl text-sm font-semibold ${
-            toast.type === 'success'
-              ? 'bg-green-600 text-white'
-              : 'bg-red-600 text-white'
-          }`}
-        >
-          {toast.message}
-        </div>
-      )}
+      {toast && <Toast message={toast.message} type={toast.type} />}
+
+      <LeaveTypeSettingsModal
+        open={showTypes}
+        onClose={() => setShowTypes(false)}
+        onSaved={load}
+        onToast={showToast}
+      />
     </div>
   );
 }

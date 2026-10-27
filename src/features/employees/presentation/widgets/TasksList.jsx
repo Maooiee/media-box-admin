@@ -56,7 +56,7 @@ function TaskRow({ task }) {
   const cfg = STATUS_CFG[task.status] ?? STATUS_CFG.backlog;
 
   return (
-    <div className="bg-white rounded-2xl p-4 border border-border shadow-sm flex items-start gap-4 hover:shadow-md transition">
+    <div className="surface-card surface-card-hover flex items-start gap-4 p-4">
       <div className={`w-2.5 h-2.5 rounded-full ${cfg.dot} mt-2 shrink-0`} />
 
       <div className="flex-1 min-w-0">

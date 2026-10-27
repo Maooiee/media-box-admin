@@ -5,10 +5,10 @@ export default function TabButton({ to, label }) {
     <NavLink
       to={to}
       className={({ isActive }) =>
-        `px-5 py-2 rounded-full text-sm font-semibold transition ${
+        `inline-flex items-center rounded-full px-4 py-2 text-xs font-semibold transition duration-200 md:px-5 md:text-sm ${
           isActive
-            ? 'bg-primary text-white shadow-sm'
-            : 'text-textLight hover:text-textDark'
+            ? 'bg-gradient-to-br from-primary to-primary-dark text-white shadow-md shadow-primary/25'
+            : 'border border-border bg-white text-textMedium hover:border-primary/40 hover:bg-primary-light/20 hover:text-textDark'
         }`
       }
     >

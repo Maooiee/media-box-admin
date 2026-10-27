@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from 'react';
-import { X, ChevronLeft, Check, UserCircle } from 'lucide-react';
+import { X, ChevronLeft, Check } from 'lucide-react';
 import { SHIFT_KINDS, kindStyle, kindDot } from '../../domain/Shift';
 import { initials } from '../../../../core/utils/formatters';
 
@@ -66,7 +66,7 @@ export default function TwoStepPicker({
       onClick={onClose}
     >
       <div
-        className="w-full md:max-w-lg bg-white rounded-t-3xl md:rounded-3xl shadow-2xl overflow-hidden max-h-[85vh] flex flex-col animate-[slideUp_200ms_ease-out]"
+        className="flex max-h-[85vh] w-full flex-col overflow-hidden rounded-t-3xl border border-white/60 bg-white shadow-float animate-[slideUp_200ms_ease-out] md:max-w-lg md:rounded-3xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

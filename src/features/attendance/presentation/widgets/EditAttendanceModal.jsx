@@ -3,6 +3,10 @@ import { Save } from 'lucide-react';
 import Modal from '../../../../shared/components/Modal';
 import Button from '../../../../shared/components/Button';
 import { attendanceRepository } from '../../data/attendanceRepository';
+import {
+  manilaDateTimeToIso,
+  toManilaTimeInput,
+} from '../../../../core/utils/formatters';
 
 const STATUSES = [
   { key: 'present', label: 'Present' },
@@ -20,26 +24,13 @@ export default function EditAttendanceModal({ open, record, onClose, onSaved }) 
 
   useEffect(() => {
     if (record) {
-      setTimeIn(toTimeInput(record.timeIn));
-      setTimeOut(toTimeInput(record.timeOut));
+      setTimeIn(toManilaTimeInput(record.timeIn));
+      setTimeOut(toManilaTimeInput(record.timeOut));
       setStatus(record.status ?? 'present');
       setNotes(record.notes ?? '');
       setError('');
     }
   }, [record]);
-
-  function toTimeInput(iso) {
-    if (!iso) return '';
-    const d = new Date(iso);
-    const hh = String(d.getHours()).padStart(2, '0');
-    const mm = String(d.getMinutes()).padStart(2, '0');
-    return `${hh}:${mm}`;
-  }
-
-  function toISO(dateStr, timeStr) {
-    if (!timeStr) return null;
-    return new Date(`${dateStr}T${timeStr}:00`).toISOString();
-  }
 
   async function handleSave() {
     if (!record) return;
@@ -47,8 +38,8 @@ export default function EditAttendanceModal({ open, record, onClose, onSaved }) 
     setError('');
     try {
       await attendanceRepository.updateRecord(record.id, {
-        timeIn: toISO(record.date, timeIn),
-        timeOut: toISO(record.date, timeOut),
+        timeIn: manilaDateTimeToIso(record.date, timeIn),
+        timeOut: manilaDateTimeToIso(record.date, timeOut),
         status,
         notes,
       });

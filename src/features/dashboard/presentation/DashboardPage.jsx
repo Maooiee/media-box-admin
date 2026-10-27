@@ -9,6 +9,9 @@ import {
 import { supabase } from '../../../core/config/supabase';
 import { formatTime } from '../../../core/utils/formatters';
 import { exportAttendancePDF } from '../../../core/utils/pdfExport';
+import PageHeader from '../../../shared/components/PageHeader';
+import SegmentedTabs from '../../../shared/components/SegmentedTabs';
+import { Skeleton, SkeletonCard, SkeletonStats } from '../../../shared/components/Skeleton';
 
 // 🧪 DEV-ONLY crash trigger — verifies the ErrorBoundary.
 //   1. Start the dev server and log in.
@@ -34,6 +37,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [todayRecords, setTodayRecords] = useState([]);
   const [liveNow, setLiveNow] = useState([]);
+  const [todayShifts, setTodayShifts] = useState([]);
   const [recent, setRecent] = useState([]);
   const [weekly, setWeekly] = useState([]);
   const [missing, setMissing] = useState([]);
@@ -60,7 +64,7 @@ export default function DashboardPage() {
       setRefreshing(true);
       const [
         today, live, recentData, weeklyData, missingData,
-        summary, snapshot, wf, leaveCount,
+        summary, snapshot, wf, leaveCount, shiftsData,
       ] = await Promise.all([
         dashboardRepository.fetchTodayRecords(),
         dashboardRepository.fetchLiveNow(),
@@ -71,9 +75,11 @@ export default function DashboardPage() {
         dashboardRepository.fetchSelfieSnapshot(),
         fetchWorkforceAvailability(),
         dashboardRepository.fetchPendingLeaveCount?.() ?? Promise.resolve(0),
+        dashboardRepository.fetchUpcomingShifts(5).catch(() => []),
       ]);
       setTodayRecords(Array.isArray(today) ? today : []);
       setLiveNow(Array.isArray(live) ? live : []);
+      setTodayShifts(Array.isArray(shiftsData) ? shiftsData : []);
       setRecent(Array.isArray(recentData) ? recentData : []);
       setWeekly(Array.isArray(weeklyData) ? weeklyData : []);
       setMissing(Array.isArray(missingData) ? missingData : []);
@@ -126,10 +132,18 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-24">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 md:w-12 md:h-12 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
-          <p className="text-xs md:text-sm text-textLight">Loading dashboard...</p>
+      <div className="mx-auto max-w-[1400px] space-y-3 pb-6 md:space-y-4 md:pb-8">
+        <Skeleton className="h-28 w-full md:h-32" rounded="rounded-2xl" />
+        <SkeletonStats count={4} />
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-3 md:gap-4">
+          <div className="space-y-3 md:space-y-4 lg:col-span-2">
+            <SkeletonCard />
+            <SkeletonCard />
+          </div>
+          <div className="space-y-3 md:space-y-4">
+            <SkeletonCard />
+            <SkeletonCard />
+          </div>
         </div>
       </div>
     );
@@ -138,60 +152,44 @@ export default function DashboardPage() {
   return (
     <div className="max-w-[1400px] mx-auto space-y-3 md:space-y-4 pb-6 md:pb-8">
       {/* Header — responsive */}
-      <div className="flex items-start justify-between flex-wrap gap-3 md:gap-4">
-        <div className="flex items-start gap-3 md:gap-4 min-w-0 flex-1">
-          <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center text-white shadow-brand shrink-0">
-            <IconChartBar size={18} />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5 md:gap-2 mb-0.5 md:mb-1">
-              <span className="text-[9px] md:text-[10px] font-bold tracking-[0.18em] text-primary uppercase">
-                Media Box
+      <PageHeader
+        section="Admin"
+        title="Attendance Dashboard"
+        subtitle={new Date().toLocaleDateString('en-PH', {
+          timeZone: 'Asia/Manila',
+          weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
+        })}
+        icon={IconChartBar}
+        action={
+          <div className="flex items-center gap-2">
+            <div className="hidden items-center gap-2 rounded-full border border-border bg-white px-3 py-1.5 text-[11px] text-textLight md:flex">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-green" />
               </span>
-              <span className="w-1 h-1 rounded-full bg-textFaint" />
-              <span className="text-[9px] md:text-[10px] font-bold tracking-[0.18em] text-textLight uppercase">
-                Admin
-              </span>
+              {refreshing
+                ? 'Refreshing…'
+                : `Live · ${new Date().toLocaleTimeString('en-PH', {
+                    timeZone: 'Asia/Manila',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}`}
             </div>
-            <h1 className="text-xl md:text-3xl font-bold text-textDark tracking-tight leading-tight truncate">
-              Attendance Dashboard
-            </h1>
-            <p className="text-[11px] md:text-xs text-textLight mt-0.5 truncate">
-              {new Date().toLocaleDateString('en-PH', {
-                weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
-              })}
-            </p>
+            <SegmentedTabs
+              value={range}
+              onChange={setRange}
+              items={[
+                { key: 'today', label: 'Today' },
+                { key: 'week', label: 'Week' },
+                { key: 'month', label: 'Month' },
+              ]}
+            />
           </div>
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          <div className="hidden md:flex items-center gap-2 text-[11px] text-textLight bg-white border border-border rounded-full px-3 py-1.5">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-green" />
-            </span>
-            {refreshing ? 'Refreshing…' : `Live · ${new Date().toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' })}`}
-          </div>
-          <div className="flex bg-white border border-border rounded-full p-0.5">
-            {['today', 'week', 'month'].map((r) => (
-              <button
-                key={r}
-                onClick={() => setRange(r)}
-                className={`px-2.5 md:px-3.5 py-1.5 rounded-full text-[11px] md:text-xs font-semibold transition ${
-                  range === r
-                    ? 'bg-primary text-white shadow-sm'
-                    : 'text-textMedium hover:text-textDark'
-                }`}
-              >
-                {r === 'today' ? 'Today' : r === 'week' ? 'Week' : 'Month'}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* This Week summary — responsive */}
-      <div className="bg-gradient-to-br from-primary-light/60 via-white to-white rounded-2xl border border-primary/15 shadow-card p-3.5 md:p-4">
+      <div className="surface-card border-primary/15 bg-gradient-to-br from-primary-light/60 via-white to-white p-3.5 md:p-4">
         <div className="flex items-center justify-between mb-2.5 md:mb-3">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 md:w-7 md:h-7 rounded-lg bg-white flex items-center justify-center text-primary">
@@ -266,6 +264,23 @@ export default function DashboardPage() {
         </div>
 
         <div className="space-y-3 md:space-y-4">
+          <Card
+            title="Today's Shifts"
+            subtitle={`${todayShifts.length} scheduled`}
+            icon={<IconCalendar size={15} />}
+            action={{ label: 'Manage', onClick: () => navigate('/shifts') }}
+          >
+            {todayShifts.length === 0 ? (
+              <EmptyText text="No shifts scheduled today." />
+            ) : (
+              <div className="space-y-0.5">
+                {todayShifts.map((s) => (
+                  <ShiftRow key={s.id} shift={s} />
+                ))}
+              </div>
+            )}
+          </Card>
+
           <Card title="Selfie Quality" icon={<IconCamera size={15} />}>
             <div className="space-y-2.5 md:space-y-3">
               <div className="flex items-baseline justify-between">
@@ -375,7 +390,7 @@ function WorkforceCard({ workforce }) {
   const total = onDuty.length + absent.length + onLeave.length + offDuty.length;
 
   return (
-    <div className="bg-white rounded-2xl border border-border shadow-card overflow-hidden">
+    <div className="surface-card overflow-hidden">
       <div className="flex items-center justify-between px-4 md:px-5 py-3 md:py-3.5 border-b border-border/60">
         <div className="flex items-center gap-2.5 md:gap-3 min-w-0">
           <div className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-primary-light flex items-center justify-center text-primary shrink-0">
@@ -437,35 +452,47 @@ function WfRow({ dot, name, empId, meta, metaColor }) {
 // Card wrapper
 // ─────────────────────────────────────────────────────────
 function Card({ title, subtitle, icon, action, tone, children }) {
-  const borderTone = tone === 'warn' ? 'border-yellow/40' : 'border-border';
-  const bgTone = tone === 'warn' ? 'bg-yellowLight/60' : 'bg-white';
-  const iconTone = tone === 'warn' ? 'bg-yellow/15 text-yellow' : 'bg-bg text-textMedium';
+  const isWarn = tone === 'warn';
 
   return (
-    <div className={`${bgTone} rounded-2xl border ${borderTone} shadow-card overflow-hidden`}>
-      <div className="flex items-center justify-between px-4 md:px-5 py-2.5 md:py-3.5 border-b border-border/60">
-        <div className="flex items-center gap-2 md:gap-3 min-w-0">
+    <section
+      className={`surface-card overflow-hidden transition-colors duration-200 hover:border-primary/20 ${
+        isWarn ? 'border-yellow/30' : ''
+      }`}
+    >
+      <div
+        className={`flex items-center justify-between gap-3 border-b px-4 py-2.5 md:px-5 md:py-3.5 ${
+          isWarn
+            ? 'border-yellow/20 bg-yellowLight/50'
+            : 'border-border/60 bg-white'
+        }`}
+      >
+        <div className="flex min-w-0 items-center gap-2 md:gap-3">
           {icon && (
-            <div className={`w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center shrink-0 ${iconTone}`}>
+            <div
+              className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg md:h-8 md:w-8 ${
+                isWarn ? 'bg-white/80 text-yellow' : 'bg-primary-light/60 text-primary'
+              }`}
+            >
               {icon}
             </div>
           )}
           <div className="min-w-0">
-            <h3 className="text-xs md:text-sm font-bold text-textDark truncate">{title}</h3>
-            {subtitle && <p className="text-[10px] text-textLight truncate">{subtitle}</p>}
+            <h3 className="truncate text-xs font-bold text-textDark md:text-sm">{title}</h3>
+            {subtitle && <p className="truncate text-[10px] text-textLight">{subtitle}</p>}
           </div>
         </div>
         {action && (
           <button
             onClick={action.onClick}
-            className="text-[11px] font-bold text-primary hover:underline shrink-0 ml-2"
+            className="ml-2 shrink-0 rounded-full px-2 py-1 text-[11px] font-bold text-primary transition hover:bg-primary-light/40"
           >
             {action.label}
           </button>
         )}
       </div>
       <div className="p-3 md:p-4">{children}</div>
-    </div>
+    </section>
   );
 }
 
@@ -494,6 +521,39 @@ function LiveRow({ record: r }) {
       </div>
       <span className="text-[10px] md:text-[11px] font-bold text-green shrink-0">
         {hours}h {mins}m
+      </span>
+    </div>
+  );
+}
+
+function formatHour(hour) {
+  const h = Number(hour);
+  if (!Number.isFinite(h)) return '--';
+  const suffix = h >= 12 ? 'PM' : 'AM';
+  const display = h % 12 === 0 ? 12 : h % 12;
+  return `${display}:00 ${suffix}`;
+}
+
+function ShiftRow({ shift: s }) {
+  const isClosing = s.kind === 'closing';
+
+  return (
+    <div className="flex items-center gap-2 py-1.5 md:py-2">
+      <div className="w-6 h-6 md:w-7 md:h-7 rounded-full bg-primary-light flex items-center justify-center text-primary text-[9px] md:text-[10px] font-bold shrink-0">
+        {(s.profiles?.full_name ?? '?')[0].toUpperCase()}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-[11px] md:text-xs font-semibold text-textDark truncate">
+          {s.profiles?.full_name ?? 'Unknown'}
+        </p>
+        <p className="text-[9px] md:text-[10px] text-textLight truncate">
+          {formatHour(s.start_hour)} – {formatHour(s.end_hour)}
+        </p>
+      </div>
+      <span className={`text-[9px] md:text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${
+        isClosing ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'
+      }`}>
+        {isClosing ? 'Closing' : 'Opening'}
       </span>
     </div>
   );
@@ -553,9 +613,12 @@ function WeeklyChart({ data }) {
 
   return (
     <div className="flex items-end justify-between gap-1.5 md:gap-2 h-24 md:h-32 px-1">
-      {data.map((d) => {
+      {data.map((d, i) => {
         const heightPct = ((d.total || 0) / max) * 100;
-        const dayLabel = new Date(d.date).toLocaleDateString('en-PH', { weekday: 'short' });
+        // Append a time so 'YYYY-MM-DD' is parsed as local midnight, not UTC.
+        const dayLabel = new Date(d.date + 'T00:00:00').toLocaleDateString('en-PH', {
+          weekday: 'short',
+        });
         const isZero = !d.total;
         return (
           <div key={d.date} className="flex-1 flex flex-col items-center gap-1 md:gap-2">
@@ -564,10 +627,13 @@ function WeeklyChart({ data }) {
             </span>
             <div className="w-full h-14 md:h-20 flex items-end justify-center">
               <div
-                className={`w-full max-w-[36px] md:max-w-[40px] rounded-t-md transition-all ${
+                className={`w-full max-w-[36px] rounded-t-md transition-all duration-500 md:max-w-[40px] animate-[fadeUp_500ms_ease-out_both] ${
                   isZero ? 'bg-border' : 'bg-gradient-to-t from-primary to-primary/60'
                 }`}
-                style={{ height: `${Math.max(heightPct, 4)}%` }}
+                style={{
+                  height: `${Math.max(heightPct, 4)}%`,
+                  animationDelay: `${i * 60}ms`,
+                }}
                 title={`${d.total} check-ins on ${d.date}`}
               />
             </div>

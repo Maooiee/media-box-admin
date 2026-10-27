@@ -36,7 +36,7 @@ export default function WeekView({
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-border shadow-sm">
+    <div className="surface-card">
       {/* Weekday header row */}
       <div className="grid grid-cols-7 bg-bg border-b border-border rounded-t-2xl">
         {WEEKDAY_LABELS.map((d, i) => {
