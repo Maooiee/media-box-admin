@@ -18,6 +18,7 @@ import StatTile from '../../../shared/components/StatTile';
 import EmptyState from '../../../shared/components/EmptyState';
 import SearchField from '../../../shared/components/SearchField';
 import FilterChips from '../../../shared/components/FilterChips';
+import SelfieImage from '../../../shared/components/SelfieImage'; // <-- Added
 import { SkeletonGrid } from '../../../shared/components/Skeleton';
 
 /** Picks the most useful reminder preset for a given attendance/selfie record. */
@@ -343,7 +344,6 @@ function NoResults({ onClear }) {
 // ─────────────────────────────────────────────────────────────
 function SelfieCard({ record: r, onClick, onRemind }) {
   const days = daysUntil(r.expiresAt);
-  const url = attendanceRepository.getSelfieUrl(r.selfieUrl);
   const hasIssues = r.selfieIssues && r.selfieIssues.length > 0;
   const score = r.selfieQualityScore;
 
@@ -379,15 +379,12 @@ function SelfieCard({ record: r, onClick, onRemind }) {
       </div>
 
       <div className="relative aspect-[4/3] md:aspect-square bg-gradient-to-br from-bg to-border/30">
-        {url ? (
+        {r.selfieUrl ? (
           <>
-            <img
-              src={url}
+            <SelfieImage
+              path={r.selfieUrl}
               alt="Selfie"
               className="w-full h-full object-cover"
-              onError={(e) => {
-                e.target.style.display = 'none';
-              }}
             />
             <div className="absolute inset-x-0 top-0 h-16 md:h-20 bg-gradient-to-b from-black/40 to-transparent pointer-events-none" />
             {days !== null && (
@@ -459,55 +456,52 @@ function SelfieTable({ records, onRowClick }) {
             </tr>
           </thead>
           <tbody>
-            {records.map((r) => {
-              const url = attendanceRepository.getSelfieUrl(r.selfieUrl);
-              return (
-                <tr
-                  key={r.id}
-                  onClick={() => onRowClick(r)}
-                  className="border-t border-border hover:bg-primary-light/10 cursor-pointer transition"
-                >
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-light to-primary/30 flex items-center justify-center text-primary font-bold text-xs shrink-0">
-                        {initials(r.employeeName)}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="font-semibold text-textDark truncate text-sm">
-                          {r.employeeName}
-                        </p>
-                        <p className="text-[10px] text-textLight truncate">
-                          {r.employeeId}
-                        </p>
-                      </div>
+            {records.map((r) => (
+              <tr
+                key={r.id}
+                onClick={() => onRowClick(r)}
+                className="border-t border-border hover:bg-primary-light/10 cursor-pointer transition"
+              >
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-light to-primary/30 flex items-center justify-center text-primary font-bold text-xs shrink-0">
+                      {initials(r.employeeName)}
                     </div>
-                  </td>
-                  <td className="px-4 py-3 text-textMedium whitespace-nowrap">{r.date}</td>
-                  <td className="px-4 py-3 text-textMedium whitespace-nowrap">{formatTime(r.timeIn)}</td>
-                  <td className="px-4 py-3 text-textMedium whitespace-nowrap">{formatTime(r.timeOut)}</td>
-                  <td className="px-4 py-3">
-                    <StatusPill status={r.status} />
-                  </td>
-                  <td className="px-4 py-3">
-                    <QualityBadge score={r.selfieQualityScore} issues={r.selfieIssues} />
-                  </td>
-                  <td className="px-4 py-3 text-textLight text-xs">
-                    {r.selfieIssues?.length ?? 0}
-                  </td>
-                  <td className="px-4 py-3">
-                    {url ? (
-                      <img
-                        src={url}
-                        alt=""
-                        className="w-10 h-10 rounded-lg object-cover border border-border"
-                      />
-                    ) : (
-                      <span className="text-textLight text-xs">—</span>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
+                    <div className="min-w-0">
+                      <p className="font-semibold text-textDark truncate text-sm">
+                        {r.employeeName}
+                      </p>
+                      <p className="text-[10px] text-textLight truncate">
+                        {r.employeeId}
+                      </p>
+                    </div>
+                  </div>
+                </td>
+                <td className="px-4 py-3 text-textMedium whitespace-nowrap">{r.date}</td>
+                <td className="px-4 py-3 text-textMedium whitespace-nowrap">{formatTime(r.timeIn)}</td>
+                <td className="px-4 py-3 text-textMedium whitespace-nowrap">{formatTime(r.timeOut)}</td>
+                <td className="px-4 py-3">
+                  <StatusPill status={r.status} />
+                </td>
+                <td className="px-4 py-3">
+                  <QualityBadge score={r.selfieQualityScore} issues={r.selfieIssues} />
+                </td>
+                <td className="px-4 py-3 text-textLight text-xs">
+                  {r.selfieIssues?.length ?? 0}
+                </td>
+                <td className="px-4 py-3">
+                  {r.selfieUrl ? (
+                    <SelfieImage
+                      path={r.selfieUrl}
+                      alt=""
+                      className="w-10 h-10 rounded-lg object-cover border border-border"
+                    />
+                  ) : (
+                    <span className="text-textLight text-xs">—</span>
+                  )}
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
@@ -597,7 +591,6 @@ function StatusPill({ status }) {
 // Detail modal — bottom sheet on mobile
 // ─────────────────────────────────────────────────────────────
 function SelfieDetailModal({ record: r, onClose }) {
-  const url = attendanceRepository.getSelfieUrl(r.selfieUrl);
   const hasIssues = r.selfieIssues && r.selfieIssues.length > 0;
 
   useEffect(() => {
@@ -648,12 +641,11 @@ function SelfieDetailModal({ record: r, onClose }) {
         </button>
 
         <div className="md:w-1/2 bg-black flex items-center justify-center relative shrink-0 max-h-[50vh] md:max-h-none">
-          {url ? (
-            <img
-              src={url}
+          {r.selfieUrl ? (
+            <SelfieImage
+              path={r.selfieUrl}
               alt="Selfie"
               className="w-full h-full object-contain"
-              style={{ maxHeight: '50vh' }}
             />
           ) : (
             <div className="py-16 md:py-20 text-white/60 text-sm">No selfie</div>

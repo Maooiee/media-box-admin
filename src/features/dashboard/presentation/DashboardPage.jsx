@@ -11,6 +11,7 @@ import { formatTime } from '../../../core/utils/formatters';
 import { exportAttendancePDF } from '../../../core/utils/pdfExport';
 import PageHeader from '../../../shared/components/PageHeader';
 import SegmentedTabs from '../../../shared/components/SegmentedTabs';
+import SelfieImage from '../../../shared/components/SelfieImage'; // <-- Added
 import { Skeleton, SkeletonCard, SkeletonStats } from '../../../shared/components/Skeleton';
 
 // 🧪 DEV-ONLY crash trigger — verifies the ErrorBoundary.
@@ -101,33 +102,45 @@ export default function DashboardPage() {
 
   async function handleExportToday() {
     if (todayRecords.length === 0) return;
-    await exportAttendancePDF(
-      todayRecords.map((r) => ({
-        employeeName: r.profiles?.full_name ?? 'Unknown',
-        employeeId: r.profiles?.employee_id ?? '',
-        position: r.profiles?.position ?? '',
-        date: r.date,
-        timeIn: r.time_in,
-        timeOut: r.time_out,
-        status: r.status,
-        selfieUrl: r.selfie_url,
-      })),
-      {
-        orgName: 'Media Box',
-        dateRange: 'Today',
-        getSelfieUrl: (path) =>
-          path ? supabase.storage.from('selfies').getPublicUrl(path).data.publicUrl : null,
-        formatTime,
-        hoursWorked: (r) => {
-          if (!r.timeIn || !r.timeOut) return '--';
-          const ms = new Date(r.timeOut) - new Date(r.timeIn);
-          if (ms <= 0) return '--';
-          const h = Math.floor(ms / 3600000);
-          const m = Math.floor((ms % 3600000) / 60000);
-          return `${h}h ${m}m`;
-        },
-      }
+
+    // Pre-fetch signed URLs for the PDF export
+    const recordsWithSignedUrls = await Promise.all(
+      todayRecords.map(async (r) => {
+        let signedUrl = null;
+        if (r.selfie_url) {
+          const { data } = await supabase.storage
+            .from('selfies')
+            .createSignedUrl(r.selfie_url, 3600);
+          if (data) signedUrl = data.signedUrl;
+        }
+        
+        return {
+          employeeName: r.profiles?.full_name ?? 'Unknown',
+          employeeId: r.profiles?.employee_id ?? '',
+          position: r.profiles?.position ?? '',
+          date: r.date,
+          timeIn: r.time_in,
+          timeOut: r.time_out,
+          status: r.status,
+          selfieUrl: signedUrl, // Pass the actual signed URL
+        };
+      })
     );
+
+    await exportAttendancePDF(recordsWithSignedUrls, {
+      orgName: 'Media Box',
+      dateRange: 'Today',
+      getSelfieUrl: (url) => url, // It's already a signed URL
+      formatTime,
+      hoursWorked: (r) => {
+        if (!r.timeIn || !r.timeOut) return '--';
+        const ms = new Date(r.timeOut) - new Date(r.timeIn);
+        if (ms <= 0) return '--';
+        const h = Math.floor(ms / 3600000);
+        const m = Math.floor((ms % 3600000) / 60000);
+        return `${h}h ${m}m`;
+      },
+    });
   }
 
   if (loading) {
@@ -560,25 +573,14 @@ function ShiftRow({ shift: s }) {
 }
 
 function CheckinRow({ record: r }) {
-  const url = r.selfie_url
-    ? supabase.storage.from('selfies').getPublicUrl(r.selfie_url).data.publicUrl
-    : null;
   const score = r.selfie_quality_score;
 
   return (
     <div className="flex items-center gap-2 py-1.5 md:py-2">
-      {url ? (
-        <img
-          src={url}
-          alt=""
-          className="w-7 h-7 md:w-8 md:h-8 rounded-lg object-cover border border-border shrink-0"
-          onError={(e) => { e.target.style.display = 'none'; }}
-        />
-      ) : (
-        <div className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-bg flex items-center justify-center text-textLight text-xs shrink-0">
-          —
-        </div>
-      )}
+      <SelfieImage
+        path={r.selfie_url}
+        className="w-7 h-7 md:w-8 md:h-8 rounded-lg object-cover border border-border shrink-0"
+      />
       <div className="flex-1 min-w-0">
         <p className="text-[11px] md:text-xs font-semibold text-textDark truncate">
           {r.profiles?.full_name ?? 'Unknown'}

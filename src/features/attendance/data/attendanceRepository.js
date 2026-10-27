@@ -68,10 +68,20 @@ export const attendanceRepository = {
     return data;
   },
 
-  getSelfieUrl(path) {
+   async getSelfieUrl(path) {
     if (!path) return null;
-    const { data } = supabase.storage.from('selfies').getPublicUrl(path);
-    return data.publicUrl;
+    
+    // Generate a signed URL valid for 1 hour (3600 seconds)
+    const { data, error } = await supabase.storage
+      .from('selfies')
+      .createSignedUrl(path, 3600);
+
+    if (error) {
+      console.error('Error creating signed URL:', error);
+      return null;
+    }
+    
+    return data.signedUrl;
   },
 
   getQualityBadge(score) {

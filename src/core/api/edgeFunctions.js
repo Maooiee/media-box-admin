@@ -21,12 +21,18 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
  * @returns {Promise<any>} Parsed JSON response
  */
 export async function callFunction(name, body = {}) {
-  const {
-    data: { session },
-    error,
-  } = await supabase.auth.getSession();
+  // Force a session refresh to guarantee the token is fresh.
+  // Supabase tokens expire after 1 hour, which causes 401 errors.
+  const { data: refreshData, error: refreshError } =
+    await supabase.auth.refreshSession();
 
-  if (error) throw new Error(`Auth error: ${error.message}`);
+  // Fallback to getSession if refresh fails (e.g. offline, or session just created)
+  const session = refreshData?.session || (await supabase.auth.getSession()).data.session;
+
+  if (refreshError) {
+    console.warn('Session refresh failed, falling back to current session:', refreshError.message);
+  }
+  
   if (!session?.access_token) throw new Error('Not authenticated');
 
   const res = await fetch(`${SUPABASE_URL}/functions/v1/${name}`, {
