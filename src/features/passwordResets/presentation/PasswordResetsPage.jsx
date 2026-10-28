@@ -157,7 +157,7 @@ export default function PasswordResetsPage() {
   }, [activeRequest]);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3 md:space-y-4">
       <PageHeader
         section="Security"
         title="Password Resets"
@@ -167,7 +167,7 @@ export default function PasswordResetsPage() {
           <button
             onClick={load}
             disabled={loading}
-            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full text-sm font-semibold bg-white border border-border text-textMedium hover:border-primary hover:text-primary transition disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white px-4 py-2.5 text-sm font-semibold text-textMedium transition hover:border-primary hover:text-primary disabled:opacity-50"
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
             Refresh
@@ -252,7 +252,7 @@ function ResetRequestCard({ request, busy, onReset, onReject }) {
         {/* Identity */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-sm md:text-base font-bold text-textDark truncate">
+            <p className="min-w-0 max-w-full truncate text-sm font-bold text-textDark md:text-base">
               {name}
             </p>
             <span
@@ -298,9 +298,9 @@ function ResetRequestCard({ request, busy, onReset, onReject }) {
       )}
 
       {/* Footer */}
-      <div className="mt-3 flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-1.5 text-[11px] text-textLight">
-          <Clock size={12} />
+      <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-[11px] text-textLight">
+          <Clock size={12} className="shrink-0" />
           {timeAgo(request.created_at)}
           {request.handled_at && (
             <>
@@ -316,11 +316,11 @@ function ResetRequestCard({ request, busy, onReset, onReject }) {
         </div>
 
         {isPending ? (
-          <div className="flex items-center gap-2">
+          <div className="flex w-full items-center gap-2 sm:w-auto sm:shrink-0">
             <button
               onClick={onReject}
               disabled={busy}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold text-textMedium bg-white border border-border hover:border-red-300 hover:text-red-600 transition disabled:opacity-50"
+              className="inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-border bg-white px-3.5 py-2 text-xs font-semibold text-textMedium transition hover:border-red-300 hover:text-red-600 disabled:opacity-50 sm:flex-none"
             >
               <XCircle size={14} />
               Reject
@@ -330,13 +330,13 @@ function ResetRequestCard({ request, busy, onReset, onReject }) {
               <button
                 onClick={onReset}
                 disabled={busy}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold text-white bg-gradient-to-br from-primary to-primary-dark shadow-md shadow-primary/25 hover:shadow-lg hover:shadow-primary/30 transition disabled:opacity-50"
+                className="inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-gradient-to-br from-primary to-primary-dark px-4 py-2 text-xs font-bold text-white shadow-md shadow-primary/25 transition hover:shadow-lg hover:shadow-primary/30 disabled:opacity-50 sm:flex-none"
               >
                 <KeyRound size={14} />
                 Reset password
               </button>
             ) : (
-              <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold text-textLight bg-bg border border-border">
+              <span className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full border border-border bg-bg px-3 py-2 text-xs font-semibold text-textLight sm:flex-none">
                 <UserX size={14} />
                 Account removed
               </span>
@@ -347,7 +347,7 @@ function ResetRequestCard({ request, busy, onReset, onReject }) {
             <button
               onClick={onReset}
               disabled={busy}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold text-textMedium bg-white border border-border hover:border-primary/40 hover:text-primary transition disabled:opacity-50"
+              className="inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-border bg-white px-4 py-2 text-xs font-semibold text-textMedium transition hover:border-primary/40 hover:text-primary disabled:opacity-50 sm:w-auto sm:shrink-0"
             >
               <KeyRound size={14} />
               Reset again

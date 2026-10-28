@@ -205,8 +205,8 @@ export default function DashboardPage() {
       <div className="surface-card border-primary/15 bg-gradient-to-br from-primary-light/60 via-white to-white p-3.5 md:p-4">
         <div className="flex items-center justify-between mb-2.5 md:mb-3">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 md:w-7 md:h-7 rounded-lg bg-white flex items-center justify-center text-primary">
-              <IconCalendar size={12} />
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary-light/70 text-primary md:h-8 md:w-8">
+              <IconCalendar size={14} />
             </div>
             <p className="text-xs font-bold text-textDark">This Week</p>
           </div>

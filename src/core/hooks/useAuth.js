@@ -6,16 +6,46 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setLoading(false);
+    let active = true;
+
+    // Restoring the session can fail when the saved refresh token is stale
+    // (revoked, expired, user deleted, project reset). supabase-js discards
+    // the dead session itself, but getSession() can reject — without the
+    // catch/finally below the app would stay on the loader forever.
+    supabase.auth
+      .getSession()
+      .then(({ data, error }) => {
+        if (!active) return;
+        if (error) {
+          console.warn('Saved session is no longer valid:', error.message);
+        }
+        setSession(error ? null : data.session);
+      })
+      .catch((error) => {
+        if (!active) return;
+        console.warn(
+          'Could not restore the saved session:',
+          error?.message ?? error,
+        );
+        setSession(null);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    const { data: sub } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (!active) return;
+      if (event === 'SIGNED_OUT') {
+        setSession(null);
+        return;
+      }
+      setSession(nextSession);
     });
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
-      setSession(session);
-    });
-
-    return () => sub.subscription.unsubscribe();
+    return () => {
+      active = false;
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
   return {

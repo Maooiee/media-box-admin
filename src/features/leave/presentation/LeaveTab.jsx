@@ -98,14 +98,14 @@ export default function LeaveTab() {
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setShowTypes(true)}
-              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white px-3 py-2 text-xs font-semibold text-textMedium transition hover:border-primary hover:text-primary md:px-4 md:py-2.5 md:text-sm"
+              className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-border bg-white px-3 py-2 text-xs font-semibold text-textMedium transition hover:border-primary hover:text-primary md:px-4 md:py-2.5 md:text-sm"
             >
               <Settings2 size={14} />
               Pay settings
             </button>
             <button
               onClick={load}
-              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white px-3 py-2 text-xs font-semibold text-textMedium transition hover:border-primary hover:text-primary md:px-4 md:py-2.5 md:text-sm"
+              className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-border bg-white px-3 py-2 text-xs font-semibold text-textMedium transition hover:border-primary hover:text-primary md:px-4 md:py-2.5 md:text-sm"
             >
               <RefreshCw size={14} />
               Refresh

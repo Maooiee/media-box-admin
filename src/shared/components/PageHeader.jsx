@@ -24,15 +24,18 @@ export default function PageHeader({
       </div>
 
       <div className="relative p-4 md:p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="flex min-w-0 flex-1 items-center gap-3 md:gap-3.5">
+        {/* Stacked on phones so the title never gets squeezed by the actions;
+            side-by-side again from md up. */}
+        <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-start md:justify-between">
+          <div className="flex w-full min-w-0 items-center gap-3 md:w-auto md:flex-1 md:gap-3.5">
             {Icon && (
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary-dark text-white shadow-brand transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:rotate-3 md:h-11 md:w-11">
-                <Icon size={18} className="md:hidden" />
-                <Icon size={20} className="hidden md:block" />
+                {/* One icon only: custom SVG icons don't forward className,
+                    so rendering a mobile + desktop pair produced two icons. */}
+                <Icon size={20} />
               </div>
             )}
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               {/* Eyebrow: brand · section */}
               <div className="mb-0.5 flex items-center gap-1.5 md:mb-1 md:gap-2">
                 <span className="eyebrow truncate text-primary">{brand}</span>
@@ -46,12 +49,12 @@ export default function PageHeader({
                 )}
               </div>
 
-              <h1 className="truncate text-xl font-bold leading-tight tracking-tight text-textDark md:text-3xl">
+              <h1 className="text-xl font-bold leading-tight tracking-tight text-textDark md:truncate md:text-3xl">
                 {title}
               </h1>
 
               {subtitle && (
-                <p className="mt-0.5 truncate text-[11px] text-textMedium md:mt-1 md:text-sm">
+                <p className="mt-0.5 text-[11px] leading-relaxed text-textMedium md:mt-1 md:truncate md:text-sm">
                   {subtitle}
                 </p>
               )}
@@ -59,7 +62,9 @@ export default function PageHeader({
           </div>
 
           {/* Action slot — pass a button (or anything) */}
-          {action && <div className="shrink-0">{action}</div>}
+          {action && (
+            <div className="w-full shrink-0 md:w-auto">{action}</div>
+          )}
         </div>
 
         {/* Optional controls row (filters, tabs, period pickers) */}

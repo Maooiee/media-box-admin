@@ -77,7 +77,7 @@ export default function ResetPasswordModal({ open, employee, onClose, onSaved })
         className="w-full max-w-md overflow-hidden rounded-3xl border border-white/60 bg-white shadow-float animate-[slideUp_220ms_ease-out]"
       >
         {/* ─── Header with gradient band ─── */}
-        <div className="relative px-6 pt-6 pb-5 border-b border-border/60">
+        <div className="relative border-b border-border/60 px-4 pb-4 pt-5 md:px-6 md:pb-5 md:pt-6">
           <div
             className="absolute -top-20 -right-20 w-64 h-64 rounded-full pointer-events-none"
             style={{
@@ -86,19 +86,19 @@ export default function ResetPasswordModal({ open, employee, onClose, onSaved })
             }}
           />
 
-          <div className="relative flex items-start justify-between">
-            <div className="flex items-center gap-3">
-              <div className="relative">
+          <div className="relative flex items-start justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="relative shrink-0">
                 <div className="absolute inset-0 bg-primary rounded-2xl blur-md opacity-30" />
                 <div className="relative w-11 h-11 rounded-2xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center text-white shadow-lg shadow-primary/25">
                   <KeyRound size={20} strokeWidth={2.4} />
                 </div>
               </div>
-              <div>
-                <h3 className="text-lg font-bold text-textDark tracking-tight">
+              <div className="min-w-0">
+                <h3 className="truncate text-lg font-bold tracking-tight text-textDark">
                   Reset Password
                 </h3>
-                <p className="text-[11.5px] text-textLight mt-0.5">
+                <p className="mt-0.5 truncate text-[11.5px] text-textLight">
                   {employee?.fullName} · {employee?.employeeId}
                 </p>
               </div>
@@ -106,7 +106,7 @@ export default function ResetPasswordModal({ open, employee, onClose, onSaved })
 
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-full hover:bg-bg flex items-center justify-center text-textLight hover:text-textDark transition"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-textLight transition hover:bg-bg hover:text-textDark"
             >
               <X size={16} />
             </button>
@@ -114,7 +114,7 @@ export default function ResetPasswordModal({ open, employee, onClose, onSaved })
         </div>
 
         {/* ─── Body ─── */}
-        <div className="px-6 py-5 max-h-[70vh] overflow-y-auto">
+        <div className="max-h-[70vh] overflow-y-auto px-4 py-4 md:px-6 md:py-5">
           {success ? (
             <SuccessPanel
               success={success}
@@ -197,11 +197,11 @@ export default function ResetPasswordModal({ open, employee, onClose, onSaved })
 
         {/* ─── Footer ─── */}
         {!success && (
-          <div className="px-6 py-4 bg-bg/60 border-t border-border/60 flex justify-end gap-2">
+          <div className="flex flex-col gap-2 border-t border-border/60 bg-bg/60 px-4 py-4 md:flex-row md:justify-end md:px-6">
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2.5 rounded-full text-sm font-semibold text-textMedium hover:bg-white transition"
+              className="w-full rounded-full px-5 py-2.5 text-sm font-semibold text-textMedium transition hover:bg-white md:w-auto"
             >
               Cancel
             </button>
@@ -209,7 +209,7 @@ export default function ResetPasswordModal({ open, employee, onClose, onSaved })
               type="button"
               onClick={handleSubmit}
               disabled={saving}
-              className="px-6 py-2.5 rounded-full bg-gradient-to-br from-primary to-primary/90 text-white text-sm font-bold shadow-md shadow-primary/25 hover:shadow-lg hover:shadow-primary/30 hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:hover:translate-y-0"
+              className="w-full rounded-full bg-gradient-to-br from-primary to-primary/90 px-6 py-2.5 text-sm font-bold text-white shadow-md shadow-primary/25 transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/30 disabled:opacity-50 disabled:hover:translate-y-0 md:w-auto"
             >
               {saving
                 ? 'Resetting...'
